@@ -22,7 +22,7 @@
             "time-of-change"                 "SCTIME"
             "magnitude-of-change"            "SCMAG"
             "time-since-change"              "SCLAST"
-            "magnitude-of-change"            "SCMQA"
+            "curve-fit"                      "SCMQA"
             "length-of-segment"              "SCSTAB"))
 
 (defn is-landcover
