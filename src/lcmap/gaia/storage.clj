@@ -113,8 +113,8 @@
    (.toString (s3/generate-presigned-url client-config bucket filename expire)))
   ([bucket filename]
    (let [today (jt/local-date)
-         tomorrow (jt/plus today (jt/days 1))]
-     (get_url bucket filename tomorrow)))
+         oneweek (jt/plus today (jt/days 7))]
+     (get_url bucket filename oneweek)))
   ([filename]
    (get_url [bucketname filename])))
 
