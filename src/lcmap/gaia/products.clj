@@ -1,17 +1,18 @@
 (ns lcmap.gaia.products
   (:gen-class)
-  (:require [clojure.tools.logging :as log]
-            [clojure.stacktrace :as stacktrace]
-            [clojure.string        :as string]
+  (:require [again.core :as again] 
             [clojure.math.numeric-tower :as math]
+            [clojure.stacktrace    :as stacktrace]
+            [clojure.string        :as string]
+            [clojure.tools.logging :as log]
             [clojure.walk          :refer [keywordize-keys]]
             [java-time             :as jt]
-            [lcmap.gaia.file       :as file]
-            [lcmap.gaia.util       :as util]
             [lcmap.gaia.config     :refer [config]]
-            [lcmap.gaia.storage    :as storage]
+            [lcmap.gaia.file       :as file]
+            [lcmap.gaia.nemo       :as nemo]
             [lcmap.gaia.product-specs :as product-specs]
-            [lcmap.gaia.nemo       :as nemo]))
+            [lcmap.gaia.storage    :as storage]
+            [lcmap.gaia.util       :as util]))
 
 (def product_abbreviations
   (hash-map "primary-landcover"              "LCPRI"
@@ -429,11 +430,16 @@
 (defn pixel_map
   "Return hash-map keyed by pixelx and pixely with a hash-map value for :segments and :predictions"
   [inputs]
-  (let [pixelx      (first (:pixelxy inputs))
-        pixely      (last  (:pixelxy inputs))
-        segments    (get (:segments inputs)    (:pixelxy inputs)) 
-        predictions (get (:predictions inputs) (:pixelxy inputs))]
-    (hash-map {:px pixelx :py pixely} (hash-map :segments segments :predictions predictions))))
+  (try
+    (let [pixelx      (first (:pixelxy inputs))
+          pixely      (last  (:pixelxy inputs))
+          segments    (get (:segments inputs)    (:pixelxy inputs)) 
+          predictions (get (:predictions inputs) (:pixelxy inputs))]
+      (hash-map {:px pixelx :py pixely} (hash-map :segments segments :predictions predictions)))
+    (catch Exception e
+      (log/errorf "Exception in products/pixel_map - pixelxy: %s exception-message: %s  stacktrace: %s " 
+                  (:pixelxy inputs) (.getMessage e) (-> e stacktrace/print-stack-trace with-out-str))
+      (throw (ex-info "Exception in product/pixel_map" {:source "products/pixel_map" :args-keys (keys inputs) :args-xy (:pixelxy inputs) :error-message (.getMessage e)})))))
 
 (defn pixel_groups
   [injson]
@@ -444,16 +450,22 @@
   "Return a flat list of product values given a collection of hash-maps
   for every pixel in a chip, [{:pixely 3159045, :pixelx -2114775, :val 6290},...] ...]"
   [product_value_collection]
-  (let [; group product coll by row
-        row_groups (util/coll-groups product_value_collection [:pixely]) 
-        ; sort row group values by pixelx ascending 
-        sort-pixelx-fn (fn [i] (hash-map (:pixely (first i)) (sort-by :pixelx (last i))))
-        sorted-x-vals (map sort-pixelx-fn row_groups)
-        ; sort the rows by the pixely key ascending
-        sorted-y-rows (sort-by (fn [i] (first (keys i))) > sorted-x-vals)
-        ; finally, flatten to a one dimensional list
-        flattened (util/flatten-vals sorted-y-rows :val)]
-    flattened))
+  (try
+    (let [; group product coll by row
+          row_groups (util/coll-groups product_value_collection [:pixely]) 
+                                        ; sort row group values by pixelx ascending 
+          sort-pixelx-fn (fn [i] (hash-map (:pixely (first i)) (sort-by :pixelx (last i))))
+          sorted-x-vals (map sort-pixelx-fn row_groups)
+                                        ; sort the rows by the pixely key ascending
+          sorted-y-rows (sort-by (fn [i] (first (keys i))) > sorted-x-vals)
+                                        ; finally, flatten to a one dimensional list
+          flattened (util/flatten-vals sorted-y-rows :val)]
+      flattened)
+    (catch Exception e
+      (log/errorf "Exception in products/flatten_values - input count: %s first input: %s last input: %s exception-message: %s  stacktrace: %s " 
+                  (count product_value_collection) (first product_value_collection) (last product_value_collection) (.getMessage e) 
+                  (-> e stacktrace/print-stack-trace with-out-str))
+      (throw (ex-info "Exception in products/flatten_values" {:source "products/flatten_values" :input-count (count product_value_collection) :message (.getMessage e)})))))
 
 (defn values
   "Returns a 1-d collection of product values"
@@ -482,8 +494,10 @@
   [{dates :dates cx :cx cy :cy product :product tile :tile :as all}]
   (try
     (let [segments    (nemo/segments cx cy)
-          predictions (if (is-landcover product) (nemo/predictions cx cy) []) ; predictions are not required for change products. don't make unnecessary http requests
-          chip_fn     #(chip product cx cy tile % segments predictions)
+          predictions (if (is-landcover product) (nemo/predictions cx cy) []) ; predictions are not required for change products
+          again_opts  {::again/callback #(when (= (-> % ::again/exception ex-data :cause) :validation-failure) ::again/fail)
+                       ::again/strategy [(:retry_wait config)]}
+          chip_fn     #(again/with-retries again_opts (chip product cx cy tile % segments predictions))
           results     (pmap chip_fn dates)
           failures    (->> results
                            (filter (fn [i] (= "fail" (:status i)))) 
@@ -492,7 +506,8 @@
       (doseq [result results]
         (when (= "success" (:status result)) 
           (log/infof "storing : %s" (get-in result [:path :name]))
-          (storage/put_json (:path result) (:data result))))
+          (again/with-retries [(:retry_wait config)]
+            (storage/put_json (:path result) (:data result)))))
 
       {:failures failures :product product :cx cx :cy cy :dates dates})
     (catch Exception e

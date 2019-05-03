@@ -35,6 +35,7 @@
    :stability_begin    (or (:stability-begin      environ/env) "1982-01-01")
    :http_port      (or (try-read (:http-port      environ/env)) 9876)
    :nemo_timeout   (or (try-read (:nemo-timeout   environ/env)) 2400000)
+   :retry_wait     (or (try-read (:retry-wait     environ/env)) 3000)
    :fill_begin     (or (try-read (:fill-begin     environ/env)) true)
    :fill_end       (or (try-read (:fill-end       environ/env)) true)
    :fill_samelc    (or (try-read (:fill-samelc    environ/env)) true)
