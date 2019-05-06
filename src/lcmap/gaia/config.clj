@@ -1,12 +1,22 @@
 (ns lcmap.gaia.config
-  (:require [environ.core :as environ]
-            [cheshire.core :as json]))
+  (:require [environ.core   :as environ]
+            [cheshire.core  :as json]
+            [clojure.tools.logging :as log]
+            [clojure.string :as string]))
 
 (defn try-read
   [val]
   (try (read-string val)
        (catch Exception ex
          nil)))
+
+(defn string-to-coll
+  [in_string variable]
+  (try
+    (map read-string (string/split in_string #","))
+    (catch Exception e
+      (log/infof "Unable to convert string to collection for %s: %s, message: %s" variable in_string (.getMessage e))
+      nil)))
 
 (def lc_map (array-map
              :develop (or (try-read (:lc-develop environ/env)) 1)
@@ -35,6 +45,7 @@
    :stability_begin    (or (:stability-begin      environ/env) "1982-01-01")
    :http_port      (or (try-read (:http-port      environ/env)) 9876)
    :nemo_timeout   (or (try-read (:nemo-timeout   environ/env)) 2400000)
+   :retry_strategy (or (string-to-coll (:retry-strategy environ/env) "retry-strategy") [5000 15000 30000])
    :fill_begin     (or (try-read (:fill-begin     environ/env)) true)
    :fill_end       (or (try-read (:fill-end       environ/env)) true)
    :fill_samelc    (or (try-read (:fill-samelc    environ/env)) true)

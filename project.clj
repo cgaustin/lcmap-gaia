@@ -1,4 +1,4 @@
-(defproject gaia "0.3.11"
+(defproject gaia "0.3.12"
   :description "Level 2 CCDC Product Generation"
   :url "http://github.com/usgs-eros/lcmap-gaia"
   :license {:name "Unlicense"
@@ -25,7 +25,8 @@
                  [ring/ring-mock            "0.3.2"]
                  [org.gdal/gdal             "2.2.0"]
                  [mount                     "0.1.12"]
-                 [amazonica                 "0.3.139"]]
+                 [amazonica                 "0.3.139"]
+                 [listora/again             "1.0.0"]]
 
   :plugins [[lein-environ "1.1.0"]]
   :profiles {:dev     {:dependencies [[org.clojure/test.check "0.9.0"]]}
