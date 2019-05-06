@@ -490,23 +490,30 @@
                   cx cy product query_day (.getMessage e) (ex-data e))
            {:status "fail" :date query_day :message (str (.getMessage e) " - " (ex-data e))})))
 
+(defn retry-handler [i cause]
+  (let [exception (::again/exception i)
+        data (ex-data exception)]
+    (when exception
+      (do
+        (if (= cause (:cause data))
+          ::again/fail
+          (log/infof "retrying chip: %s" data))))))
+
 (defn generate
   [{dates :dates cx :cx cy :cy product :product tile :tile :as all}]
   (try
     (let [segments    (nemo/segments cx cy)
           predictions (if (is-landcover product) (nemo/predictions cx cy) []) ; predictions are not required for change products
-          again_opts  {::again/callback #(when (= (-> % ::again/exception ex-data :cause) :validation-failure) ::again/fail)
-                       ::again/strategy [(:retry_wait config)]}
-          chip_fn     #(again/with-retries again_opts (chip product cx cy tile % segments predictions))
-          results     (pmap chip_fn dates)
-          failures    (->> results
-                           (filter (fn [i] (= "fail" (:status i)))) 
-                           (map (fn [i] {(:date i) (:message i)})))]
+          retry_opts  {::again/callback #(retry-handler % :validation-failure) ::again/strategy (:retry_strategy config)}
+          chip_again  #(again/with-retries retry_opts (chip product cx cy tile % segments predictions))
+          results     (pmap chip_again dates)
+          fail_filter #(filter (fn [i] (= "fail" (:status i))) %) 
+          failures    (->> results fail_filter (map (fn [i] {(:date i) (:message i)})))]
 
       (doseq [result results]
         (when (= "success" (:status result)) 
           (log/infof "storing : %s" (get-in result [:path :name]))
-          (again/with-retries [(:retry_wait config)]
+          (again/with-retries (:retry_strategy config)
             (storage/put_json (:path result) (:data result)))))
 
       {:failures failures :product product :cx cx :cy cy :dates dates})
