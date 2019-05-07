@@ -94,8 +94,11 @@
      (catch Exception e
        (product-exception-handler e "time-of-change"))))
   ([pixel_map pixel_models query-day]
-   (let [values (map #(time-of-change % query-day (:px pixel_map) (:py pixel_map)) (:segments pixel_models))]
-     (last (sort-by :val values)))))
+   (let [segments (filter product-specs/segment_valid? (:segments pixel_models))
+         values (map #(time-of-change % query-day (:px pixel_map) (:py pixel_map)) segments)]
+     (if (empty? segments)
+       (hash-map :pixelx (:px pixel_map) :pixely (:py pixel_map) :val 0)
+       (last (sort-by :val values))))))
 
 (defn time-since-change
   "Return cumulative distance to previous break"
@@ -109,12 +112,15 @@
      (catch Exception e
        (product-exception-handler e "time-since-change"))))
   ([pixel_map pixel_models query-day]
-   (let [values    (map #(time-since-change % query-day (:px pixel_map) (:py pixel_map)) (:segments pixel_models))
+   (let [segments  (filter product-specs/segment_valid? (:segments pixel_models))
+         values    (map #(time-since-change % query-day (:px pixel_map) (:py pixel_map)) segments)
          non-zeros (filter (fn [i] (not (zero? (:val i)))) values)]
-     (if (empty? non-zeros) 
-       (first values)                    ; they are all 0, doesn't matter which 
-       (first (sort-by :val non-zeros))) ; take the shortest distance
-     )))
+     (if (empty? segments)
+       (hash-map :pixelx (:px pixel_map) :pixely (:py pixel_map) :val 0)
+       (if (empty? non-zeros)
+         (first values)                    ; they are all 0, doesn't matter which 
+         (first (sort-by :val non-zeros))) ; take the shortest distance
+       ))))
 
 (defn magnitude-of-change
   "Return severity of spectral shift"
@@ -132,15 +138,17 @@
      (catch Exception e
        (product-exception-handler e "magnitude-of-change"))))
   ([pixel_map pixel_models query-day]
-   (let [values (map #(magnitude-of-change % query-day (:px pixel_map) (:py pixel_map)) (:segments pixel_models))]
-     (last (sort-by :val values)))))
+   (let [segments (filter product-specs/segment_valid? (:segments pixel_models))
+         values   (map #(magnitude-of-change % query-day (:px pixel_map) (:py pixel_map)) segments)]
+     (if (empty? segments)
+       (hash-map :pixelx (:px pixel_map) :pixely (:py pixel_map) :val 0)
+       (last (sort-by :val values))))))
 
 (defn length-of-segment
   "Return length of change segment in days"
   ([model query-day x y]
    (try
-     (let [stability_begin (:stability_begin config)
-           fill (- query-day (util/to-ordinal stability_begin))
+     (let [fill (- query-day (util/to-ordinal (:stability_begin config)))
            start-day (-> model (:sday) (util/to-ordinal))
            end-day   (-> model (:eday) (util/to-ordinal))
            diff      (if (> query-day end-day) (- query-day end-day) (- query-day start-day))
@@ -149,8 +157,12 @@
      (catch Exception e
        (product-exception-handler e "length-of-segment"))))
   ([pixel_map pixel_models query-day]
-   (let [values (map #(length-of-segment % query-day (:px pixel_map) (:py pixel_map)) (:segments pixel_models))]
-     (first (sort-by :val values)))))
+   (let [fill     (- query-day (util/to-ordinal (:stability_begin config)))
+         segments (filter product-specs/segment_valid? (:segments pixel_models))
+         values   (map #(length-of-segment % query-day (:px pixel_map) (:py pixel_map)) segments)]
+     (if (empty? segments)
+       (hash-map :pixelx (:px pixel_map) :pixely (:py pixel_map) :val fill)
+       (first (sort-by :val values))))))
 
 (defn curve-fit
   "Return Curve QA for point in time"
@@ -164,8 +176,11 @@
      (catch Exception e
        (product-exception-handler e "curve-fit"))))
   ([pixel_map pixel_models query-day]
-   (let [values (map #(curve-fit % query-day (:px pixel_map) (:py pixel_map)) (:segments pixel_models))]
-     (last (sort-by :val values)))))
+   (let [segments (filter product-specs/segment_valid? (:segments pixel_models))
+         values   (map #(curve-fit % query-day (:px pixel_map) (:py pixel_map)) segments)]
+     (if (empty? segments)
+       (hash-map :pixelx (:px pixel_map) :pixely (:py pixel_map) :val 0)
+       (last (sort-by :val values))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;    CLASSIFICATION PRODUCTS    ;;;;;;;;;;;;;
@@ -470,8 +485,8 @@
 (defn values
   "Returns a 1-d collection of product values"
   [segments_json predictions_json product_type queryday]
-  (let [segments    (-> segments_json (keywordize-keys) (product-specs/segment_coll_check) (pixel_groups))
-        predictions (or (some-> predictions_json (not-empty) (keywordize-keys) (product-specs/prediction_coll_check) (pixel_groups)) [])
+  (let [segments    (-> segments_json (keywordize-keys) (pixel_groups))
+        predictions (or (some-> predictions_json (not-empty) (keywordize-keys) (pixel_groups)) [])
         product_fn  (->> product_type (product-specs/product_type_check) (str "lcmap.gaia.products/") (symbol) (resolve))
         query_ord   (-> queryday (product-specs/date_fmt_check) (util/to-ordinal))
         per_pixel_inputs (map #(pixel_map {:pixelxy % :segments segments :predictions predictions}) (keys segments))
