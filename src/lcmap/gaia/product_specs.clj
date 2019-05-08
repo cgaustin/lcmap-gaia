@@ -89,6 +89,10 @@
                (throw))
       (spec/conform spec params)))
 
+(defn segment_valid?
+  [segment]
+  (nil? (spec/explain-data ::segment segment)))
+
 (defn segment_check
   [segment]
   (check! ::segment segment {:type :segment-exception :cause :validation-failure}))
