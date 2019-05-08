@@ -532,7 +532,7 @@
           (again/with-retries (:retry_strategy config)
             (storage/put_json (:path result) (:data result)))))
 
-      {:failures failures :product products :cx cx :cy cy :dates dates})
+      {:failures failures :products products :cx cx :cy cy :dates dates})
     (catch Exception e
       (log/errorf "Exception in products/generation ! args: %s -  message: %s - data: %s - stacktrace: %s" all (.getMessage e) (ex-data e) (-> e stacktrace/print-stack-trace with-out-str))
       (throw (ex-info "Exception in product generation" {:data (ex-data e) :error-message (.getMessage e) :args all})))))

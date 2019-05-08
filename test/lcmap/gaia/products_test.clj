@@ -68,9 +68,9 @@
   (with-redefs [nemo/segments (fn [cx cy] [1 2 3])
                 nemo/predictions (fn [cx cy] [4 5 6])
                 products/chip (fn [p cx cy tile day segs preds] {:path {} :status "fail" :message "bad message" :date day})]
-    (let [input {:dates ["2006-07-01"] :cx 111111 :cy 222222 :product "TSC" :tile "012345"}
+    (let [input {:dates ["2006-07-01"] :cx 111111 :cy 222222 :products ["time-since-change"] :tile "012345"}
           result (products/generate input)]
-      (is (= result {:failures '({"2006-07-01" "bad message"}), :product "TSC", :cx 111111, :cy 222222, :dates ["2006-07-01"]})))))
+      (is (= result {:failures '({"2006-07-01" "bad message"}), :products ["time-since-change"], :cx 111111, :cy 222222, :dates ["2006-07-01"]})))))
 
 (deftest time-of-change-single-model-test
   (let [result (products/time-of-change (first (:segments tr/first_segments_predictions))  tr/query_ord 100 -100)]
