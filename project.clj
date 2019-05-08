@@ -1,4 +1,4 @@
-(defproject gaia "0.3.13"
+(defproject gaia "0.4.13"
   :description "Level 2 CCDC Product Generation"
   :url "http://github.com/usgs-eros/lcmap-gaia"
   :license {:name "Unlicense"
@@ -14,6 +14,7 @@
                                                     com.sun.jmx/jmxri]]
                  [cheshire                  "5.8.0"]
                  [clojure.java-time         "0.3.2"]
+                 [org.clojure/math.combinatorics "0.1.5"]
                  [compojure                 "1.6.1"]
                  [environ                   "1.1.0"]
                  [http-kit                  "2.2.0"]

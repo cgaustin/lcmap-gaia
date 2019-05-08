@@ -86,7 +86,7 @@ http POST 127.0.0.1:9876/product cx="1484415" \
                                  cy="2114805" \
                                  dates:="[\"2006-07-01\"]" \
                                  tile="003008" \
-                                 product="time-since-change"
+                                 products:="[\"time-since-change\"]"
 ```
 
 ## Requesting a map using HTTPie
@@ -95,7 +95,7 @@ http POST 127.0.0.1:9876/raster date="2006-07-01" \
                                 tile="003008" \
                                 tilex="1484415" \
                                 tiley="2114805" \
-                                product="time-since-change" \
+                                products:="[\"time-since-change\"]" \
                                 chips:="[{\"cx\":\"1484415\", \"cy\":\"2114805\"},...]"
 ```
 

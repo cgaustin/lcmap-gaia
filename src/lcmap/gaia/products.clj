@@ -2,6 +2,7 @@
   (:gen-class)
   (:require [again.core :as again] 
             [clojure.math.numeric-tower :as math]
+            [clojure.math.combinatorics :as combo]
             [clojure.stacktrace    :as stacktrace]
             [clojure.string        :as string]
             [clojure.tools.logging :as log]
@@ -514,13 +515,14 @@
           (log/infof "retrying chip: %s" data))))))
 
 (defn generate
-  [{dates :dates cx :cx cy :cy product :product tile :tile :as all}]
+  [{dates :dates cx :cx cy :cy products :products tile :tile :as all}]
   (try
     (let [segments    (nemo/segments cx cy)
-          predictions (if (is-landcover product) (nemo/predictions cx cy) []) ; predictions are not required for change products
+          predictions (nemo/predictions cx cy)
+          products_dates (combo/cartesian-product products dates)
           retry_opts  {::again/callback #(retry-handler % :validation-failure) ::again/strategy (:retry_strategy config)}
-          chip_again  #(again/with-retries retry_opts (chip product cx cy tile % segments predictions))
-          results     (pmap chip_again dates)
+          chip_again  #(again/with-retries retry_opts (chip (first %) cx cy tile (last %) segments predictions))
+          results     (pmap chip_again products_dates)
           fail_filter #(filter (fn [i] (= "fail" (:status i))) %) 
           failures    (->> results fail_filter (map (fn [i] {(:date i) (:message i)})))]
 
@@ -530,7 +532,7 @@
           (again/with-retries (:retry_strategy config)
             (storage/put_json (:path result) (:data result)))))
 
-      {:failures failures :product product :cx cx :cy cy :dates dates})
+      {:failures failures :product products :cx cx :cy cy :dates dates})
     (catch Exception e
       (log/errorf "Exception in products/generation ! args: %s -  message: %s - data: %s - stacktrace: %s" all (.getMessage e) (ex-data e) (-> e stacktrace/print-stack-trace with-out-str))
       (throw (ex-info "Exception in product generation" {:data (ex-data e) :error-message (.getMessage e) :args all})))))
