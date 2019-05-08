@@ -50,10 +50,9 @@
   [tileid product date]
   (let [grid      (:region config)
         repr_date (string/replace date "-" "")
-        prod_date (string/replace (str (jt/local-date)) "-" "")
         ccd_ver   (:ccd_ver config)
         product_abbr (get product_abbreviations product)
-        elements ["LCMAP" grid tileid repr_date prod_date ccd_ver product_abbr]
+        elements ["LCMAP" grid tileid repr_date ccd_ver product_abbr]
         name (str (string/join "-" elements) ".tif")
         prefix (get-prefix grid date tileid "raster" product)
         url (storage/get_url storage/bucketname (str prefix "/" name))]
@@ -95,7 +94,7 @@
        (product-exception-handler e "time-of-change"))))
   ([pixel_map pixel_models query-day]
    (let [segments (filter product-specs/segment_valid? (:segments pixel_models))
-         values (map #(time-of-change % query-day (:px pixel_map) (:py pixel_map)) segments)]
+         values   (map #(time-of-change % query-day (:px pixel_map) (:py pixel_map)) segments)]
      (if (empty? segments)
        (hash-map :pixelx (:px pixel_map) :pixely (:py pixel_map) :val 0)
        (last (sort-by :val values))))))
