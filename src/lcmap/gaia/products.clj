@@ -397,6 +397,7 @@
      :else
      (merge response_template {:val (util/concat_ints (previous_value) (latest_value))}))))
 
+
 (defn confidence
   "Return the landcover confidence value given the segments, probabilities, query_day and rank for a location"
   [pixel_models query_date rank]
