@@ -151,8 +151,8 @@
     (is (= (products/falls-between-bday-sday map_a map_b) expected))))
 
 (deftest nbr_test
-  (let [first_nbr (products/nbr (first tr/first_sorted_segments))
-        last_nbr  (products/nbr (last tr/first_sorted_segments))]
+  (let [first_nbr (products/normalized-burn-ratio (first tr/first_sorted_segments))
+        last_nbr  (products/normalized-burn-ratio (last tr/first_sorted_segments))]
     (is (> first_nbr 0.12))
     (is (< first_nbr 0.14))
     (is (> last_nbr  0.33))
@@ -200,20 +200,20 @@
 (deftest classify_else_test
   (let [first_segment (first tr/first_sorted_segments)
         sday (-> first_segment (:sday) (util/to-ordinal))
-        nbrdiff (products/nbr first_segment)
+        nbrdiff (products/normalized-burn-ratio first_segment)
         segment_probabilities (filter (fn [i] (= (util/to-ordinal (:sday i)) sday)) (:predictions tr/first_segments_predictions))
         sorted_probabilities (util/sort-by-key segment_probabilities :date)
         segment_model (merge first_segment {:probabilities sorted_probabilities})]
     (is (= 7 (products/classify segment_model tr/query_ord 0 nbrdiff)))))
 
 (deftest characterize_segment_test
-  (with-redefs [products/nbr (fn [i] 66)
+  (with-redefs [products/normalized-burn-ratio (fn [i] 66)
                 products/classify (fn [a b c d] 99)]
     (let [segment {:sday "1990-04-27" :eday "2000-06-11" :bday "2000-06-11"}
           query_day (-> "1998-07-01" (util/to-ordinal))
           probabilities [{:sday "1990-04-27" :date "1995-07-01"} 
                          {:sday "2000-07-10" :date "2001-07-01"}]
-          characterized (products/characterize_segment segment query_day probabilities 0)]
+          characterized (products/characterize-segment segment query_day probabilities 0)]
       (is (= characterized {:intersects true
                             :precedes_sday false
                             :follows_eday false
@@ -299,12 +299,12 @@
            (products/confidence segs_probs ordinal_1995 0)))
 
     ; query date falls between a segments start date and end date and decline is true
-    (with-redefs [products/nbr (fn [i] -0.66)]
+    (with-redefs [products/normalized-burn-ratio (fn [i] -0.66)]
       (is (= (:lcc_decline (:lc_defaults config))
              (products/confidence segs_probs ordinal_1995 0))))
 
     ; query date falls between a segments start and end date, neither growth nor decline
-    (with-redefs [products/nbr (fn [i] 0.01)]
+    (with-redefs [products/normalized-burn-ratio (fn [i] 0.01)]
       (is (= 8 (products/confidence segs_probs ordinal_1995 0))))
 
     ; query date falls between segments of same landcover classification and fill_samelc config is true
@@ -315,25 +315,25 @@
     (is (= (:lcc_difflc (:lc_defaults config))
            (products/confidence segs_probs ordinal_2001 0)))))
 
-(deftest pixel_map_test
+(deftest pixel-map_test
   (let [inmap {:pixelxy [1 2] :segments {[1 2] [:a :b :c]} :predictions {[1 2] [:d :e :f]}}]
-    (is (= (products/pixel_map inmap) {{:px 1 :py 2} {:segments [:a :b :c] :predictions [:d :e :f]}}))))
+    (is (= (products/pixel-map inmap) {{:px 1 :py 2} {:segments [:a :b :c] :predictions [:d :e :f]}}))))
 
-(deftest pixel_groups_test
+(deftest pixel-groups_test
   (let [inmaps [{:px 1 :py 2 :foo "bar"} {:px 1 :py 2 :foo "too"} 
                 {:px 3 :py 4 :foo "shizzle"} {:px 3 :py 4 :foo "baz"}]
-        value (products/pixel_groups inmaps)] 
+        value (products/pixel-groups inmaps)] 
     (is (= (count value) 2))
     (is (= (keys value) '([1 2] [3 4])))))
 
-(deftest flatten_product_data_test
+(deftest flatten-values_data_test
   ; lower left pixel value should be the first item in returned collection
   (let [input [{:pixely 3159045, :pixelx -2114775, :val 2} ; lower left
                {:pixely 3159045, :pixelx -2114745, :val 4} ; lower right
                {:pixely 3159075, :pixelx -2114775, :val 6} ; upper left
                {:pixely 3159075, :pixelx -2114745, :val 8} ; upper right
                ]]
-    (is (= (products/flatten_values input)
+    (is (= (products/flatten-values input)
            [6 8 2 4]))))
 
 (deftest values_test
