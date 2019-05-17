@@ -27,7 +27,7 @@
 (deftest test-nlcd_filter
   (with-redefs [chipmunk/nlcd_filters (fn [a b] {:mask [0 1 0 1] :values [1 2 3 4]})]
     (let [result (raster/nlcd_filter [5 6 7 0] "time-since-change" 111 222)]
-      (is (= result [0 6 0 0])))))
+      (is (= result [1 6 3 4])))))
 
 (deftest test-create_geotiff
   (with-redefs [util/get-projection           (fn [] "wkt-proj")

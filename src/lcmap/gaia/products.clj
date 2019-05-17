@@ -94,7 +94,7 @@
      (catch Exception e
        (product-exception-handler e "time-of-change"))))
   ([pixel_map pixel_models query-day]
-   (let [segments (filter product-specs/segment_valid? (:segments pixel_models))
+   (let [segments (filter product-specs/segment-valid? (:segments pixel_models))
          values   (map #(time-of-change % query-day (:px pixel_map) (:py pixel_map)) segments)]
      (if (empty? segments)
        (hash-map :pixelx (:px pixel_map) :pixely (:py pixel_map) :val 0)
@@ -112,7 +112,7 @@
      (catch Exception e
        (product-exception-handler e "time-since-change"))))
   ([pixel_map pixel_models query-day]
-   (let [segments  (filter product-specs/segment_valid? (:segments pixel_models))
+   (let [segments  (filter product-specs/segment-valid? (:segments pixel_models))
          values    (map #(time-since-change % query-day (:px pixel_map) (:py pixel_map)) segments)
          non-zeros (filter (fn [i] (not (zero? (:val i)))) values)]
      (if (empty? segments)
@@ -138,7 +138,7 @@
      (catch Exception e
        (product-exception-handler e "magnitude-of-change"))))
   ([pixel_map pixel_models query-day]
-   (let [segments (filter product-specs/segment_valid? (:segments pixel_models))
+   (let [segments (filter product-specs/segment-valid? (:segments pixel_models))
          values   (map #(magnitude-of-change % query-day (:px pixel_map) (:py pixel_map)) segments)]
      (if (empty? segments)
        (hash-map :pixelx (:px pixel_map) :pixely (:py pixel_map) :val 0)
@@ -158,7 +158,7 @@
        (product-exception-handler e "length-of-segment"))))
   ([pixel_map pixel_models query-day]
    (let [fill     (- query-day (util/to-ordinal (:stability_begin config)))
-         segments (filter product-specs/segment_valid? (:segments pixel_models))
+         segments (filter product-specs/segment-valid? (:segments pixel_models))
          values   (map #(length-of-segment % query-day (:px pixel_map) (:py pixel_map)) segments)]
      (if (empty? segments)
        (hash-map :pixelx (:px pixel_map) :pixely (:py pixel_map) :val fill)
@@ -176,7 +176,7 @@
      (catch Exception e
        (product-exception-handler e "curve-fit"))))
   ([pixel_map pixel_models query-day]
-   (let [segments (filter product-specs/segment_valid? (:segments pixel_models))
+   (let [segments (filter product-specs/segment-valid? (:segments pixel_models))
          values   (map #(curve-fit % query-day (:px pixel_map) (:py pixel_map)) segments)]
      (if (empty? segments)
        (hash-map :pixelx (:px pixel_map) :pixely (:py pixel_map) :val 0)
@@ -354,26 +354,38 @@
 (defn primary-landcover
   "Return the highest landcover class value"
   [pixel_map pixel_models query_date]
-  (let [value (landcover pixel_models query_date 0)]
+  (let [predictions_valid (not-empty (filter product-specs/prediction-valid? (:predictions pixel_models)))
+        value (if predictions_valid (landcover pixel_models query_date 0) (:none (:lc_map config)))]
     (hash-map :pixelx (:px pixel_map) :pixely (:py pixel_map) :val value)))
 
 (defn secondary-landcover
   "Return the second highest landcover class value"
   [pixel_map pixel_models query_date]
-  (let [value (landcover pixel_models query_date 1)]
+  (let [predictions_valid (not-empty (filter product-specs/prediction-valid? (:predictions pixel_models)))
+        value (if predictions_valid (landcover pixel_models query_date 1) (:none (:lc_map config)))]
     (hash-map :pixelx (:px pixel_map) :pixely (:py pixel_map) :val value)))
 
 (defn annual-change
   "Return the change in landcover from the provided year, to the previous year"
   [pixel_map pixel_models query_date]
-  (let [previous_query_day (util/subtract_year query_date)
-        previous_value (landcover pixel_models previous_query_day 0)
-        latest_value (landcover pixel_models query_date 0)
-        response_template (hash-map :pixelx (:px pixel_map) :pixely (:py pixel_map))]
+  (let [predictions_valid  (not-empty (filter product-specs/prediction-valid? (:predictions pixel_models)))
+        previous_query_day (util/subtract_year query_date)
+        previous_value    #(landcover pixel_models previous_query_day 0)
+        latest_value      #(landcover pixel_models query_date 0)
+        response_template  (hash-map :pixelx (:px pixel_map) :pixely (:py pixel_map))]
 
-    (if (= previous_value latest_value)
-      (merge response_template {:val latest_value})
-      (merge response_template {:val (util/concat_ints previous_value latest_value)}))))
+    (cond
+     ; invalid predictions, use (:none (:lc_map))
+     (= false predictions_valid)
+     (merge response_template {:val (:none (:lc_map config))})
+
+     ; last class matches latest class
+     (= (previous_value) (latest_value))
+     (merge response_template {:val (latest_value)})
+
+     ; classes don't match
+     :else
+     (merge response_template {:val (util/concat_ints (previous_value) (latest_value))}))))
 
 (defn confidence
   "Return the landcover confidence value given the segments, probabilities, query_day and rank for a location"
@@ -431,13 +443,15 @@
 (defn primary-landcover-confidence
   "Return the landcover probability for the highest landcover class value"
   [pixel_map pixel_models query_date]
-  (let [value (confidence pixel_models query_date 0)]
+  (let [predictions_valid (not-empty (filter product-specs/prediction-valid? (:predictions pixel_models)))
+        value (if predictions_valid (confidence pixel_models query_date 0) (:lcc_nomodel (:lc_defaults config)))]
     (hash-map :pixelx (:px pixel_map) :pixely (:py pixel_map) :val value)))
 
 (defn secondary-landcover-confidence
   "Return the landcover probability for the 2nd highest landcover class value"
   [pixel_map pixel_models query_date]
-  (let [value (confidence pixel_models query_date 1)]
+  (let [predictions_valid (not-empty (filter product-specs/prediction-valid? (:predictions pixel_models)))
+        value (if predictions_valid (confidence pixel_models query_date 1) (:lcc_nomodel (:lc_defaults config)))]
     (hash-map :pixelx (:px pixel_map) :pixely (:py pixel_map) :val value)))
 
 (defn pixel-map
