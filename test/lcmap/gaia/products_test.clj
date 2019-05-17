@@ -348,7 +348,9 @@
     ; products/data should throw an exception when its output is too small
     (is (thrown-with-msg? Exception #"Validation Error" (products/values first_seg first_pred product query_day)))
     ; requesting a landcover product with no predictions should throw an exception
-    (is (thrown-with-msg? Exception #"Exception in products/flatten_values" (products/values segs [] "primary-landcover" query_day)))
+    ;(is (thrown-with-msg? Exception #"Exception in products/flatten_values" (products/values segs [] "primary-landcover" query_day)))
+    (is (= '(0) (distinct (products/values segs [] "primary-landcover" query_day))))
+    (is (= 10000 (count (products/values segs [] "primary-landcover" query_day))))
     ; requesting a change product with no predictions is valid
     (is (= 2915 (nth (products/values segs [] product query_day) 5)))))
 
