@@ -354,21 +354,21 @@
 (defn primary-landcover
   "Return the highest landcover class value"
   [pixel_map pixel_models query_date]
-  (let [predictions_valid (not-empty (filter product-specs/prediction-valid? (:predictions pixel_models)))
+  (let [predictions_valid (not-empty (filter product-specs/predictions-valid? (:predictions pixel_models)))
         value (if predictions_valid (landcover pixel_models query_date 0) (:none (:lc_map config)))]
     (hash-map :pixelx (:px pixel_map) :pixely (:py pixel_map) :val value)))
 
 (defn secondary-landcover
   "Return the second highest landcover class value"
   [pixel_map pixel_models query_date]
-  (let [predictions_valid (not-empty (filter product-specs/prediction-valid? (:predictions pixel_models)))
+  (let [predictions_valid (not-empty (filter product-specs/predictions-valid? (:predictions pixel_models)))
         value (if predictions_valid (landcover pixel_models query_date 1) (:none (:lc_map config)))]
     (hash-map :pixelx (:px pixel_map) :pixely (:py pixel_map) :val value)))
 
 (defn annual-change
   "Return the change in landcover from the provided year, to the previous year"
   [pixel_map pixel_models query_date]
-  (let [predictions_valid  (not-empty (filter product-specs/prediction-valid? (:predictions pixel_models)))
+  (let [predictions_valid  (not-empty (filter product-specs/predictions-valid? (:predictions pixel_models)))
         previous_query_day (util/subtract_year query_date)
         previous_value    #(landcover pixel_models previous_query_day 0)
         latest_value      #(landcover pixel_models query_date 0)
@@ -443,14 +443,14 @@
 (defn primary-landcover-confidence
   "Return the landcover probability for the highest landcover class value"
   [pixel_map pixel_models query_date]
-  (let [predictions_valid (not-empty (filter product-specs/prediction-valid? (:predictions pixel_models)))
+  (let [predictions_valid (not-empty (filter product-specs/predictions-valid? (:predictions pixel_models)))
         value (if predictions_valid (confidence pixel_models query_date 0) (:lcc_nomodel (:lc_defaults config)))]
     (hash-map :pixelx (:px pixel_map) :pixely (:py pixel_map) :val value)))
 
 (defn secondary-landcover-confidence
   "Return the landcover probability for the 2nd highest landcover class value"
   [pixel_map pixel_models query_date]
-  (let [predictions_valid (not-empty (filter product-specs/prediction-valid? (:predictions pixel_models)))
+  (let [predictions_valid (not-empty (filter product-specs/predictions-valid? (:predictions pixel_models)))
         value (if predictions_valid (confidence pixel_models query_date 1) (:lcc_nomodel (:lc_defaults config)))]
     (hash-map :pixelx (:px pixel_map) :pixely (:py pixel_map) :val value)))
 

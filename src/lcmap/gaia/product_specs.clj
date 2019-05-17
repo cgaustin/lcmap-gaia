@@ -101,6 +101,10 @@
   [prediction]
   (nil? (spec/explain-data ::prediction prediction)))
 
+(defn predictions-valid?
+  [predictions]
+  (nil? (spec/explain-data ::predictions predictions)))
+
 (defn segment_check
   [segment]
   (check! ::segment segment {:type :segment-exception :cause :validation-failure}))
