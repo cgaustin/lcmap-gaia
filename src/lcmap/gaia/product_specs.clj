@@ -88,9 +88,17 @@
                (throw))
       (spec/conform spec params)))
 
-(defn segment_valid?
+(defn segment-valid?
   [segment]
   (nil? (spec/explain-data ::segment segment)))
+
+(defn segments-valid?
+  [segments]
+  (nil? (spec/explain-data ::segments segments)))
+
+(defn prediction-valid?
+  [prediction]
+  (nil? (spec/explain-data ::prediction prediction)))
 
 (defn segment_check
   [segment]
