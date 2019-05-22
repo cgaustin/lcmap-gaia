@@ -352,13 +352,13 @@
     ; requesting a change product with no predictions is valid
     (is (= 2915 (nth (products/values segs [] product query_day) 5)))))
 
-(deftest product_abbreviations_test
-  (is (= (keys products/product_abbreviations) 
+(deftest product_details_test
+  (is (= (keys products/product_details) 
          '("primary-landcover" "time-of-change" "annual-change" "length-of-segment" "curve-fit" "secondary-landcover-confidence" "magnitude-of-change" "time-since-change" "secondary-landcover" "primary-landcover-confidence")))
   
-  (is (= (vals products/product_abbreviations)
+  (is (= (map :abbr (vals products/product_details)) 
          '("LCPRI" "SCTIME" "LCACHG" "SCSTAB" "SCMQA" "LCSCONF" "SCMAG" "SCLAST" "LCSEC" "LCPCONF")))
 
-  (is (= 10 (count products/product_abbreviations))))
+  (is (= 10 (count products/product_details))))
 
 

@@ -27,9 +27,9 @@
     [(int x_offset) (int y_offset)]))
 
 (defn create_blank_tile_tiff
-  [name ulx uly projection]
+  [name ulx uly projection data_type]
   (let [values (repeat (* 5000 5000) 0)]
-    (gdal/create_geotiff name values ulx uly projection 5000 5000 0 0)))
+    (gdal/create_geotiff name values ulx uly projection data_type 5000 5000 0 0)))
 
 (defn add_chip_to_tile
   [name values tile_x tile_y chip_x chip_y]
@@ -46,9 +46,10 @@
 (defn create_geotiff
   [{date :date tile :tile tilex :tilex tiley :tiley chips :chips product :product :as all}]
   (let [projection (util/get-projection)
-        map_path (products/map-path tile product date)]
+        map_path (products/map-path tile product date)
+        data_type (:type (get products/product_details product))]
     (try
-      (create_blank_tile_tiff (:name map_path) tilex tiley projection)
+      (create_blank_tile_tiff (:name map_path) tilex tiley projection data_type)
       (doseq [chip chips
               :let [cx (:cx chip)
                     cy (:cy chip)
