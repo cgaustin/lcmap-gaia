@@ -50,9 +50,9 @@
   :start (init))
 
 (defn create_geotiff
-  [name values ulx uly projection x_size y_size x_offset y_offset]
+  [name values ulx uly projection data_type x_size y_size x_offset y_offset]
   (let [driver  (gdal/GetDriverByName "GTiff")
-        dataset (.Create driver name x_size y_size)
+        dataset (.Create driver name x_size y_size 1 data_type)
         band    (.GetRasterBand dataset 1)
         transform (double-array [ulx 30 0 uly 0 -30])]
     (.SetGeoTransform dataset transform)

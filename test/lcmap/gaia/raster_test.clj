@@ -13,8 +13,8 @@
     (is (= result [2 1]))))
 
 (deftest test-create_blank_tile_tiff
-  (with-redefs [gdal/create_geotiff (fn [a b c d e f g h i] {:name a :values b :ulx c :uly d :projection e :xdim f :ydim g :xoff h :yoff i})]
-    (let [result (raster/create_blank_tile_tiff "foo.tif" 111 222 "wkt_proj")]
+  (with-redefs [gdal/create_geotiff (fn [a b c d e f g h i j] {:name a :values b :ulx c :uly d :projection e :xdim f :ydim g :xoff h :yoff i})]
+    (let [result (raster/create_blank_tile_tiff "foo.tif" 111 222 1 "wkt_proj")]
       (is (= (sort '(:name :values :ulx :uly :projection :xdim :ydim :xoff :yoff)) (sort (keys result))))
       (is (= (count (:values result)) 25000000))
       (is (= 0 (first (:values result)))))))
@@ -32,7 +32,7 @@
 (deftest test-create_geotiff
   (with-redefs [util/get-projection           (fn [] "wkt-proj")
                 products/map-path             (fn [a b c] (str a b c))
-                raster/create_blank_tile_tiff (fn [a b c d] true)
+                raster/create_blank_tile_tiff (fn [a b c d e] true)
                 products/ppath                (fn [a b c d e] (str a b c d e))
                 storage/get_json              (fn [i] {"values" [1 2 3 4]})
                 raster/nlcd_filter            (fn [a b c d] [6 7 8 9])

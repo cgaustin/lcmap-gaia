@@ -15,21 +15,26 @@
             [lcmap.gaia.storage    :as storage]
             [lcmap.gaia.util       :as util]))
 
-(def product_abbreviations
-  (hash-map "primary-landcover"              "LCPRI"
-            "secondary-landcover"            "LCSEC"
-            "primary-landcover-confidence"   "LCPCONF"
-            "secondary-landcover-confidence" "LCSCONF"
-            "annual-change"                  "LCACHG"
-            "time-of-change"                 "SCTIME"
-            "magnitude-of-change"            "SCMAG"
-            "time-since-change"              "SCLAST"
-            "curve-fit"                      "SCMQA"
-            "length-of-segment"              "SCSTAB"))
+
+; https://gdal.org/java/org/gdal/gdalconst/gdalconstConstants.html#GDT_Byte
+; GDT_Byte    (1) : Eight bit unsigned integer (data type)       -> 1
+; GDT_Float32 (6) : Thirty two bit floating point (data type) -> 6
+; GDT_UInt16  (2) : Sixteen bit unsigned integer (data type)   -> 2
+(def product_details
+  (hash-map "primary-landcover"              {:abbr "LCPRI"   :type 1}              
+            "secondary-landcover"            {:abbr "LCSEC"   :type 1}            
+            "primary-landcover-confidence"   {:abbr "LCPCONF" :type 1}  
+            "secondary-landcover-confidence" {:abbr "LCSCONF" :type 1} 
+            "annual-change"                  {:abbr "LCACHG"  :type 1} 
+            "time-of-change"                 {:abbr "SCTIME"  :type 2}                
+            "magnitude-of-change"            {:abbr "SCMAG"   :type 6}            
+            "time-since-change"              {:abbr "SCLAST"  :type 2}              
+            "curve-fit"                      {:abbr "SCMQA"   :type 1}                     
+            "length-of-segment"              {:abbr "SCSTAB"  :type 2}))
 
 (defn is-landcover
   [name]
-  (let [abbr (get product_abbreviations name)]
+  (let [abbr (:abbr (get product_details name))]
     (try
       (some? (re-matches #"LC(.*)" abbr))
       (catch NullPointerException e
@@ -52,7 +57,7 @@
   (let [grid      (:region config)
         repr_date (string/replace date "-" "")
         ccd_ver   (:ccd_ver config)
-        product_abbr (get product_abbreviations product)
+        product_abbr (:abbr (get product_details product)) 
         elements ["LCMAP" grid tileid repr_date ccd_ver product_abbr]
         name (str (string/join "-" elements) ".tif")
         prefix (get-prefix grid date tileid "raster" product)
