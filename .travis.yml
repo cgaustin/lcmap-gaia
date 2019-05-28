@@ -5,6 +5,7 @@ services:
 - docker
 sudo: required
 before_install:
+- apt-get install gdal-bin libgdal-dev libgdal-java libgdal20 python-gdal -y
 - lein deps 
 - lein test
 after_success:
