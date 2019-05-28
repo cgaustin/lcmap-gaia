@@ -101,28 +101,6 @@
        (-> 0 (response))
        (-> (last (sort values)) (response))))))
 
-;; (defn time-of-change
-;;   "Return numeric day of year in which a break occurs"
-;;   ([model query-day x y]
-;;    (try
-;;      (let [change-prob (:chprob model)
-;;            break-day   (-> model (:bday) (util/to-javatime)) 
-;;            query-year  (-> query-day (util/ordinal-to-javatime) (util/javatime-year))
-;;            break-year  (-> break-day (util/javatime-year))
-;;            response    #(hash-map :pixelx x :pixely y :val %)]
-;;        (if (and (= query-year break-year) (= 1.0 change-prob))
-;;          (-> break-day (util/javatime-day-of-year) response) 
-;;          (-> 0 response)))
-;;      (catch Exception e
-;;        (product-exception-handler e "time-of-change"))))
-;;   ([pixel_map pixel_models query-day]
-;;    (let [segments (filter product-specs/segment_valid? (:segments pixel_models))
-;;          values   (map #(time-of-change % query-day (:px pixel_map) (:py pixel_map)) segments)]
-;;      (if (empty? segments)
-;;        (hash-map :pixelx (:px pixel_map) :pixely (:py pixel_map) :val 0)
-;;        (last (sort-by :val values))))))
-
-
 (defn time-since-change
   "Return cumulative distance to previous break"
   ([model query-day]
