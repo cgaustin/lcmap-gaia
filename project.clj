@@ -1,4 +1,4 @@
-(defproject gaia "0.5.13"
+(defproject gaia "0.6.13"
   :description "Level 2 CCDC Product Generation"
   :url "http://github.com/usgs-eros/lcmap-gaia"
   :license {:name "Unlicense"
