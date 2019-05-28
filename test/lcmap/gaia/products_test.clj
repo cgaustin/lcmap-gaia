@@ -93,8 +93,8 @@
     (is (= (count results) 10000))))
 
 (deftest magnitude-of-change-single-model-test
-  (let [result (products/magnitude-of-change (first (:segments tr/first_segments_predictions)) tr/query_ord 100 -100)]
-    (is (= (set (keys result)) response_set))))
+  (let [result (products/magnitude-of-change (first (:segments tr/first_segments_predictions)) tr/query_ord)]
+    (is (= result 0))))
 
 (deftest magnitude-of-change-chip-level-test
   (let [results (map #(products/magnitude-of-change (-> % (keys) (first)) (-> % (vals) (first)) tr/query_ord) tr/pixel_map)
@@ -103,8 +103,8 @@
     (is (= (count results) 10000))))
 
 (deftest length-of-segment-single-model-test
-  (let [result (products/length-of-segment (first (:segments tr/first_segments_predictions)) tr/query_ord 100 -100)]
-    (is (= (set (keys result)) response_set))))
+  (let [result (products/length-of-segment (first (:segments tr/first_segments_predictions)) tr/query_ord)]
+    (is (= result 1755))))
 
 (deftest length-of-segment-chip-level-test
   (let [results (map #(products/length-of-segment (-> % (keys) (first)) (-> % (vals) (first)) tr/query_ord) tr/pixel_map)
@@ -113,8 +113,8 @@
     (is (= (count results) 10000))))
 
 (deftest curve-fit-single-model-test
-  (let [result (products/curve-fit (first (:segments tr/first_segments_predictions)) tr/query_ord 100 -100)]
-    (is (= (set (keys result)) response_set))))
+  (let [result (products/curve-fit (first (:segments tr/first_segments_predictions)) tr/query_ord)]
+    (is (= result 0))))
 
 (deftest curve-fit-chip-level-test
   (let [results (map #(products/curve-fit (-> % (keys) (first)) (-> % (vals) (first)) 730789) tr/pixel_map)

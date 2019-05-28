@@ -124,63 +124,67 @@
 
 (defn magnitude-of-change
   "Return severity of spectral shift"
-  ([model query-day x y]
+  ([model query-day]
    (try
-     (let [change-prob (:chprob model)
+     (let [change-prob (= 1.0 (:chprob model)) 
            query-year  (-> query-day (util/ordinal-to-javatime) (util/javatime-year))
            break-year  (-> (:bday model) (util/to-javatime) (util/javatime-year))
            magnitudes  [(:grmag model) (:remag model) (:nimag model) (:s1mag model) (:s2mag model)]
-           euc-norm    (math/sqrt (reduce + (map #(math/expt % 2) magnitudes)))
-           response    #(hash-map :pixelx x :pixely y :val %)]
-       (if (= true (= query-year break-year) (= 1.0 change-prob))
-         (-> euc-norm (response))
-         (-> 0 (response))))
+           euc-norm    (math/sqrt (reduce + (map #(math/expt % 2) magnitudes)))]
+       (if (and (= query-year break-year) change-prob)
+         euc-norm
+         0))
      (catch Exception e
        (product-exception-handler e "magnitude-of-change"))))
   ([pixel_map pixel_models query-day]
    (let [segments (filter product-specs/segment_valid? (:segments pixel_models))
-         values   (map #(magnitude-of-change % query-day (:px pixel_map) (:py pixel_map)) segments)]
+         values   (map #(magnitude-of-change % query-day) segments)
+         response  #(hash-map :pixelx (:px pixel_map) :pixely (:py pixel_map) :val %)]
      (if (empty? segments)
-       (hash-map :pixelx (:px pixel_map) :pixely (:py pixel_map) :val 0)
-       (last (sort-by :val values))))))
+       (-> 0 (response))
+       (-> (last (sort values)) (response))))))
 
 (defn length-of-segment
   "Return length of change segment in days"
-  ([model query-day x y]
+  ([model query-day]
    (try
      (let [fill (- query-day (util/to-ordinal (:stability_begin config)))
            start-day (-> model (:sday) (util/to-ordinal))
            end-day   (-> model (:eday) (util/to-ordinal))
-           diff      (if (> query-day end-day) (- query-day end-day) (- query-day start-day))
-           value     (if (and (<= 0 diff) (< diff fill)) diff fill)]
-       (hash-map :pixelx x :pixely y :val value))
+           diff      (if (> query-day end-day) (- query-day end-day) (- query-day start-day))]
+       (if (and (<= 0 diff) (< diff fill)) 
+         diff 
+         fill))
      (catch Exception e
        (product-exception-handler e "length-of-segment"))))
   ([pixel_map pixel_models query-day]
    (let [fill     (- query-day (util/to-ordinal (:stability_begin config)))
          segments (filter product-specs/segment_valid? (:segments pixel_models))
-         values   (map #(length-of-segment % query-day (:px pixel_map) (:py pixel_map)) segments)]
+         values   (map #(length-of-segment % query-day) segments)
+         response #(hash-map :pixelx (:px pixel_map) :pixely (:py pixel_map) :val %)]
      (if (empty? segments)
-       (hash-map :pixelx (:px pixel_map) :pixely (:py pixel_map) :val fill)
-       (first (sort-by :val values))))))
+       (-> fill (response))
+       (-> (first (sort values)) (response))))))
 
 (defn curve-fit
   "Return Curve QA for point in time"
-  ([model query-day x y]
+  ([model query-day]
    (try
      (let [curve-qa  (:curqa model)
            start-day (-> model (:sday) (util/to-ordinal))
-           end-day   (-> model (:eday) (util/to-ordinal))
-           value     (if (<= start-day query-day end-day) curve-qa 0)]
-       (hash-map :pixelx x :pixely y :val value))
+           end-day   (-> model (:eday) (util/to-ordinal))]
+       (if (<= start-day query-day end-day)
+         curve-qa
+         0))
      (catch Exception e
        (product-exception-handler e "curve-fit"))))
   ([pixel_map pixel_models query-day]
    (let [segments (filter product-specs/segment_valid? (:segments pixel_models))
-         values   (map #(curve-fit % query-day (:px pixel_map) (:py pixel_map)) segments)]
+         values   (map #(curve-fit % query-day) segments)
+         response #(hash-map :pixelx (:px pixel_map) :pixely (:py pixel_map) :val %)]
      (if (empty? segments)
-       (hash-map :pixelx (:px pixel_map) :pixely (:py pixel_map) :val 0)
-       (last (sort-by :val values))))))
+       (-> 0 (response))
+       (-> (last (sort values)) (response))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;    CLASSIFICATION PRODUCTS    ;;;;;;;;;;;;;
