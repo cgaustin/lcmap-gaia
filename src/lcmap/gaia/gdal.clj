@@ -49,6 +49,14 @@
 (mount/defstate gdal-init
   :start (init))
 
+; https://gdal.org/java/org/gdal/gdalconst/gdalconstConstants.html#GDT_Byte
+; GDT_Byte    (1) : Eight bit unsigned integer (data type)       -> 1
+; GDT_Float32 (6) : Thirty two bit floating point (data type) -> 6
+; GDT_UInt16  (2) : Sixteen bit unsigned integer (data type)   -> 2
+(def int8    (. gdalconst GDT_Byte))
+(def int16   (. gdalconst GDT_UInt16))
+(def float32 (. gdalconst GDT_Float32))
+
 (defn create_geotiff
   [name values ulx uly projection data_type x_size y_size x_offset y_offset]
   (let [driver  (gdal/GetDriverByName "GTiff")

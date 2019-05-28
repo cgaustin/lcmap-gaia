@@ -10,27 +10,23 @@
             [java-time             :as jt]
             [lcmap.gaia.config     :refer [config]]
             [lcmap.gaia.file       :as file]
+            [lcmap.gaia.gdal       :as gdal]
             [lcmap.gaia.nemo       :as nemo]
             [lcmap.gaia.product-specs :as product-specs]
             [lcmap.gaia.storage    :as storage]
             [lcmap.gaia.util       :as util]))
 
-
-; https://gdal.org/java/org/gdal/gdalconst/gdalconstConstants.html#GDT_Byte
-; GDT_Byte    (1) : Eight bit unsigned integer (data type)       -> 1
-; GDT_Float32 (6) : Thirty two bit floating point (data type) -> 6
-; GDT_UInt16  (2) : Sixteen bit unsigned integer (data type)   -> 2
 (def product_details
-  (hash-map "primary-landcover"              {:abbr "LCPRI"   :type 1}              
-            "secondary-landcover"            {:abbr "LCSEC"   :type 1}            
-            "primary-landcover-confidence"   {:abbr "LCPCONF" :type 1}  
-            "secondary-landcover-confidence" {:abbr "LCSCONF" :type 1} 
-            "annual-change"                  {:abbr "LCACHG"  :type 1} 
-            "time-of-change"                 {:abbr "SCTIME"  :type 2}                
-            "magnitude-of-change"            {:abbr "SCMAG"   :type 6}            
-            "time-since-change"              {:abbr "SCLAST"  :type 2}              
-            "curve-fit"                      {:abbr "SCMQA"   :type 1}                     
-            "length-of-segment"              {:abbr "SCSTAB"  :type 2}))
+  (hash-map "primary-landcover"              {:abbr "LCPRI"   :type gdal/int8}              
+            "secondary-landcover"            {:abbr "LCSEC"   :type gdal/int8}            
+            "primary-landcover-confidence"   {:abbr "LCPCONF" :type gdal/int8}  
+            "secondary-landcover-confidence" {:abbr "LCSCONF" :type gdal/int8} 
+            "annual-change"                  {:abbr "LCACHG"  :type gdal/int8} 
+            "time-of-change"                 {:abbr "SCTIME"  :type gdal/int16}                
+            "magnitude-of-change"            {:abbr "SCMAG"   :type gdal/float32}            
+            "time-since-change"              {:abbr "SCLAST"  :type gdal/int16}              
+            "curve-fit"                      {:abbr "SCMQA"   :type gdal/int8}                     
+            "length-of-segment"              {:abbr "SCSTAB"  :type gdal/int16}))
 
 (defn is-landcover
   [name]
@@ -107,25 +103,24 @@
 
 (defn time-since-change
   "Return cumulative distance to previous break"
-  ([model query-day x y]
+  ([model query-day]
    (try
-     (let [change-prob (:chprob model)
+     (let [change-prob (= 1.0 (:chprob model)) 
            break-day   (-> model (:bday) (util/to-ordinal))
-           day-diff    (- query-day break-day)
-           distance    (if (and (= 1.0 change-prob) (pos? day-diff)) day-diff 0)]
-       (hash-map :pixelx x :pixely y :val distance))
+           day-diff    (- query-day break-day)]
+       (if (and change-prob (>= day-diff 0)) 
+                         day-diff 
+                         nil))
      (catch Exception e
        (product-exception-handler e "time-since-change"))))
   ([pixel_map pixel_models query-day]
    (let [segments  (filter product-specs/segment_valid? (:segments pixel_models))
-         values    (map #(time-since-change % query-day (:px pixel_map) (:py pixel_map)) segments)
-         non-zeros (filter (fn [i] (not (zero? (:val i)))) values)]
-     (if (empty? segments)
-       (hash-map :pixelx (:px pixel_map) :pixely (:py pixel_map) :val 0)
-       (if (empty? non-zeros)
-         (first values)                    ; they are all 0, doesn't matter which 
-         (first (sort-by :val non-zeros))) ; take the shortest distance
-       ))))
+         values    (map #(time-since-change % query-day) segments)
+         valid     (filter number? values)
+         response #(hash-map :pixelx (:px pixel_map) :pixely (:py pixel_map) :val %)]
+     (if (or (empty? segments) (empty? valid))
+       (-> 0 (response))
+       (-> (first (sort valid)) (response))))))
 
 (defn magnitude-of-change
   "Return severity of spectral shift"

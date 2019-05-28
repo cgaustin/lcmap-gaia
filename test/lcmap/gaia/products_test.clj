@@ -83,11 +83,11 @@
     (is (= (set (keys first_result)) response_set))))
 
 (deftest time-since-change-single-model-test
-  (let [result (products/time-since-change (first (:segments tr/first_segments_predictions)) tr/query_ord 100 -100)]
-    (is (= (set (keys result)) response_set))))
+  (let [result (products/time-since-change (first (:segments tr/first_segments_predictions)) tr/query_ord)]
+    (is (= result 1731))))
 
 (deftest time-since-change-chip-level-test
-  (let [results (map #(products/time-since-change (-> % (keys) (first)) (-> % (vals) (first)) tr/query_ord) tr/pixel_map)
+  (let [results (map #(products/time-since-change-orig (-> % (keys) (first)) (-> % (vals) (first)) tr/query_ord) tr/pixel_map)
         greater_thans (filter (fn [i] (> 1000 (:val i))) results)]
     (is (= (count greater_thans) 6182))
     (is (= (count results) 10000))))
