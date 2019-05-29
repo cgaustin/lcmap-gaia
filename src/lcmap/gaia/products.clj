@@ -94,7 +94,7 @@
      (catch Exception e
        (product-exception-handler e "time-of-change"))))
   ([pixel_map pixel_models query-day]
-   (let [segments (filter product-specs/segment_valid? (:segments pixel_models))
+   (let [segments (filter product-specs/segment-valid? (:segments pixel_models))
          values   (map #(time-of-change % query-day) segments)
          response #(hash-map :pixelx (:px pixel_map) :pixely (:py pixel_map) :val %)]
      (if (empty? segments)
@@ -114,7 +114,7 @@
      (catch Exception e
        (product-exception-handler e "time-since-change"))))
   ([pixel_map pixel_models query-day]
-   (let [segments  (filter product-specs/segment_valid? (:segments pixel_models))
+   (let [segments  (filter product-specs/segment-valid? (:segments pixel_models))
          values    (map #(time-since-change % query-day) segments)
          valid     (filter number? values)
          response #(hash-map :pixelx (:px pixel_map) :pixely (:py pixel_map) :val %)]
@@ -137,7 +137,7 @@
      (catch Exception e
        (product-exception-handler e "magnitude-of-change"))))
   ([pixel_map pixel_models query-day]
-   (let [segments (filter product-specs/segment_valid? (:segments pixel_models))
+   (let [segments (filter product-specs/segment-valid? (:segments pixel_models))
          values   (map #(magnitude-of-change % query-day) segments)
          response  #(hash-map :pixelx (:px pixel_map) :pixely (:py pixel_map) :val %)]
      (if (empty? segments)
@@ -159,7 +159,7 @@
        (product-exception-handler e "length-of-segment"))))
   ([pixel_map pixel_models query-day]
    (let [fill     (- query-day (util/to-ordinal (:stability_begin config)))
-         segments (filter product-specs/segment_valid? (:segments pixel_models))
+         segments (filter product-specs/segment-valid? (:segments pixel_models))
          values   (map #(length-of-segment % query-day) segments)
          response #(hash-map :pixelx (:px pixel_map) :pixely (:py pixel_map) :val %)]
      (if (empty? segments)
@@ -179,7 +179,7 @@
      (catch Exception e
        (product-exception-handler e "curve-fit"))))
   ([pixel_map pixel_models query-day]
-   (let [segments (filter product-specs/segment_valid? (:segments pixel_models))
+   (let [segments (filter product-specs/segment-valid? (:segments pixel_models))
          values   (map #(curve-fit % query-day) segments)
          response #(hash-map :pixelx (:px pixel_map) :pixely (:py pixel_map) :val %)]
      (if (empty? segments)

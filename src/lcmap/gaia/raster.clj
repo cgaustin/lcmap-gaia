@@ -40,8 +40,11 @@
   (let [filters (chipmunk/nlcd_filters cx cy)
         mask    (:mask filters)
         values  (:values filters)
-        fill_fn (fn [input fill] (if (zero? input) fill input))]
-    (-> indata (#(map * % mask)) (#(map fill_fn % values)))))
+        fill_fn (fn [input fill] (if (zero? input) fill input))
+        masked  (map * indata mask)]
+    (if (products/is-landcover product)
+      (map fill_fn masked values)
+      masked)))
 
 (defn create_geotiff
   [{date :date tile :tile tilex :tilex tiley :tiley chips :chips product :product :as all}]
