@@ -6,7 +6,7 @@ services:
 sudo: required
 before_install:
 - sudo apt-get update
-- sudo apt-get install gdal-bin libgdal-dev libgdal-java libgdal20 python-gdal -y
+- sudo apt-get install gdal-bin libgdal-dev libgdal-java python-gdal -y
 - lein deps 
 - lein test
 after_success:
