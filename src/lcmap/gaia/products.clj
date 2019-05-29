@@ -10,27 +10,23 @@
             [java-time             :as jt]
             [lcmap.gaia.config     :refer [config]]
             [lcmap.gaia.file       :as file]
+            [lcmap.gaia.gdal       :as gdal]
             [lcmap.gaia.nemo       :as nemo]
             [lcmap.gaia.product-specs :as product-specs]
             [lcmap.gaia.storage    :as storage]
             [lcmap.gaia.util       :as util]))
 
-
-; https://gdal.org/java/org/gdal/gdalconst/gdalconstConstants.html#GDT_Byte
-; GDT_Byte    (1) : Eight bit unsigned integer (data type)       -> 1
-; GDT_Float32 (6) : Thirty two bit floating point (data type) -> 6
-; GDT_UInt16  (2) : Sixteen bit unsigned integer (data type)   -> 2
 (def product_details
-  (hash-map "primary-landcover"              {:abbr "LCPRI"   :type 1}              
-            "secondary-landcover"            {:abbr "LCSEC"   :type 1}            
-            "primary-landcover-confidence"   {:abbr "LCPCONF" :type 1}  
-            "secondary-landcover-confidence" {:abbr "LCSCONF" :type 1} 
-            "annual-change"                  {:abbr "LCACHG"  :type 1} 
-            "time-of-change"                 {:abbr "SCTIME"  :type 2}                
-            "magnitude-of-change"            {:abbr "SCMAG"   :type 6}            
-            "time-since-change"              {:abbr "SCLAST"  :type 2}              
-            "curve-fit"                      {:abbr "SCMQA"   :type 1}                     
-            "length-of-segment"              {:abbr "SCSTAB"  :type 2}))
+  (hash-map "primary-landcover"              {:abbr "LCPRI"   :type gdal/int8}              
+            "secondary-landcover"            {:abbr "LCSEC"   :type gdal/int8}            
+            "primary-landcover-confidence"   {:abbr "LCPCONF" :type gdal/int8}  
+            "secondary-landcover-confidence" {:abbr "LCSCONF" :type gdal/int8} 
+            "annual-change"                  {:abbr "LCACHG"  :type gdal/int8} 
+            "time-of-change"                 {:abbr "SCTIME"  :type gdal/int16}                
+            "magnitude-of-change"            {:abbr "SCMAG"   :type gdal/float32}            
+            "time-since-change"              {:abbr "SCLAST"  :type gdal/int16}              
+            "curve-fit"                      {:abbr "SCMQA"   :type gdal/int8}                     
+            "length-of-segment"              {:abbr "SCSTAB"  :type gdal/int16}))
 
 (defn is-landcover
   [name]
@@ -86,106 +82,109 @@
 
 (defn time-of-change
   "Return numeric day of year in which a break occurs"
-  ([model query-day x y]
+  ([model query-day]
    (try
      (let [change-prob (:chprob model)
            break-day   (-> model (:bday) (util/to-javatime)) 
            query-year  (-> query-day (util/ordinal-to-javatime) (util/javatime-year))
-           break-year  (-> break-day (util/javatime-year))
-           response    #(hash-map :pixelx x :pixely y :val %)]
+           break-year  (-> break-day (util/javatime-year))]
        (if (and (= query-year break-year) (= 1.0 change-prob))
-         (-> break-day (util/javatime-day-of-year) response) 
-         (-> 0 response)))
+         (util/javatime-day-of-year break-day)
+         0))
      (catch Exception e
        (product-exception-handler e "time-of-change"))))
   ([pixel_map pixel_models query-day]
    (let [segments (filter product-specs/segment_valid? (:segments pixel_models))
-         values   (map #(time-of-change % query-day (:px pixel_map) (:py pixel_map)) segments)]
+         values   (map #(time-of-change % query-day) segments)
+         response #(hash-map :pixelx (:px pixel_map) :pixely (:py pixel_map) :val %)]
      (if (empty? segments)
-       (hash-map :pixelx (:px pixel_map) :pixely (:py pixel_map) :val 0)
-       (last (sort-by :val values))))))
+       (-> 0 (response))
+       (-> (last (sort values)) (response))))))
 
 (defn time-since-change
   "Return cumulative distance to previous break"
-  ([model query-day x y]
+  ([model query-day]
    (try
-     (let [change-prob (:chprob model)
+     (let [change-prob (= 1.0 (:chprob model)) 
            break-day   (-> model (:bday) (util/to-ordinal))
-           day-diff    (- query-day break-day)
-           distance    (if (and (= 1.0 change-prob) (pos? day-diff)) day-diff 0)]
-       (hash-map :pixelx x :pixely y :val distance))
+           day-diff    (- query-day break-day)]
+       (if (and change-prob (>= day-diff 0)) 
+                         day-diff 
+                         nil))
      (catch Exception e
        (product-exception-handler e "time-since-change"))))
   ([pixel_map pixel_models query-day]
    (let [segments  (filter product-specs/segment_valid? (:segments pixel_models))
-         values    (map #(time-since-change % query-day (:px pixel_map) (:py pixel_map)) segments)
-         non-zeros (filter (fn [i] (not (zero? (:val i)))) values)]
-     (if (empty? segments)
-       (hash-map :pixelx (:px pixel_map) :pixely (:py pixel_map) :val 0)
-       (if (empty? non-zeros)
-         (first values)                    ; they are all 0, doesn't matter which 
-         (first (sort-by :val non-zeros))) ; take the shortest distance
-       ))))
+         values    (map #(time-since-change % query-day) segments)
+         valid     (filter number? values)
+         response #(hash-map :pixelx (:px pixel_map) :pixely (:py pixel_map) :val %)]
+     (if (or (empty? segments) (empty? valid))
+       (-> 0 (response))
+       (-> (first (sort valid)) (response))))))
 
 (defn magnitude-of-change
   "Return severity of spectral shift"
-  ([model query-day x y]
+  ([model query-day]
    (try
-     (let [change-prob (:chprob model)
+     (let [change-prob (= 1.0 (:chprob model)) 
            query-year  (-> query-day (util/ordinal-to-javatime) (util/javatime-year))
            break-year  (-> (:bday model) (util/to-javatime) (util/javatime-year))
            magnitudes  [(:grmag model) (:remag model) (:nimag model) (:s1mag model) (:s2mag model)]
-           euc-norm    (math/sqrt (reduce + (map #(math/expt % 2) magnitudes)))
-           response    #(hash-map :pixelx x :pixely y :val %)]
-       (if (= true (= query-year break-year) (= 1.0 change-prob))
-         (-> euc-norm (response))
-         (-> 0 (response))))
+           euc-norm    (math/sqrt (reduce + (map #(math/expt % 2) magnitudes)))]
+       (if (and (= query-year break-year) change-prob)
+         euc-norm
+         0))
      (catch Exception e
        (product-exception-handler e "magnitude-of-change"))))
   ([pixel_map pixel_models query-day]
    (let [segments (filter product-specs/segment_valid? (:segments pixel_models))
-         values   (map #(magnitude-of-change % query-day (:px pixel_map) (:py pixel_map)) segments)]
+         values   (map #(magnitude-of-change % query-day) segments)
+         response  #(hash-map :pixelx (:px pixel_map) :pixely (:py pixel_map) :val %)]
      (if (empty? segments)
-       (hash-map :pixelx (:px pixel_map) :pixely (:py pixel_map) :val 0)
-       (last (sort-by :val values))))))
+       (-> 0 (response))
+       (-> (last (sort values)) (response))))))
 
 (defn length-of-segment
   "Return length of change segment in days"
-  ([model query-day x y]
+  ([model query-day]
    (try
      (let [fill (- query-day (util/to-ordinal (:stability_begin config)))
            start-day (-> model (:sday) (util/to-ordinal))
            end-day   (-> model (:eday) (util/to-ordinal))
-           diff      (if (> query-day end-day) (- query-day end-day) (- query-day start-day))
-           value     (if (and (<= 0 diff) (< diff fill)) diff fill)]
-       (hash-map :pixelx x :pixely y :val value))
+           diff      (if (> query-day end-day) (- query-day end-day) (- query-day start-day))]
+       (if (and (<= 0 diff) (< diff fill)) 
+         diff 
+         fill))
      (catch Exception e
        (product-exception-handler e "length-of-segment"))))
   ([pixel_map pixel_models query-day]
    (let [fill     (- query-day (util/to-ordinal (:stability_begin config)))
          segments (filter product-specs/segment_valid? (:segments pixel_models))
-         values   (map #(length-of-segment % query-day (:px pixel_map) (:py pixel_map)) segments)]
+         values   (map #(length-of-segment % query-day) segments)
+         response #(hash-map :pixelx (:px pixel_map) :pixely (:py pixel_map) :val %)]
      (if (empty? segments)
-       (hash-map :pixelx (:px pixel_map) :pixely (:py pixel_map) :val fill)
-       (first (sort-by :val values))))))
+       (-> fill (response))
+       (-> (first (sort values)) (response))))))
 
 (defn curve-fit
   "Return Curve QA for point in time"
-  ([model query-day x y]
+  ([model query-day]
    (try
      (let [curve-qa  (:curqa model)
            start-day (-> model (:sday) (util/to-ordinal))
-           end-day   (-> model (:eday) (util/to-ordinal))
-           value     (if (<= start-day query-day end-day) curve-qa 0)]
-       (hash-map :pixelx x :pixely y :val value))
+           end-day   (-> model (:eday) (util/to-ordinal))]
+       (if (<= start-day query-day end-day)
+         curve-qa
+         0))
      (catch Exception e
        (product-exception-handler e "curve-fit"))))
   ([pixel_map pixel_models query-day]
    (let [segments (filter product-specs/segment_valid? (:segments pixel_models))
-         values   (map #(curve-fit % query-day (:px pixel_map) (:py pixel_map)) segments)]
+         values   (map #(curve-fit % query-day) segments)
+         response #(hash-map :pixelx (:px pixel_map) :pixely (:py pixel_map) :val %)]
      (if (empty? segments)
-       (hash-map :pixelx (:px pixel_map) :pixely (:py pixel_map) :val 0)
-       (last (sort-by :val values))))))
+       (-> 0 (response))
+       (-> (last (sort values)) (response))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;    CLASSIFICATION PRODUCTS    ;;;;;;;;;;;;;

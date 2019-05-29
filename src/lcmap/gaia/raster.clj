@@ -1,7 +1,6 @@
 (ns lcmap.gaia.raster
   (:require [clojure.tools.logging :as log]
             [clojure.java.io :as io]
-            [lcmap.gaia.gdal :as ggdal]
             [lcmap.gaia.products :as products]
             [lcmap.gaia.nemo :as nemo]
             [lcmap.gaia.file :as file]

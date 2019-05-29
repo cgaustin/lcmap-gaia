@@ -5,7 +5,8 @@
   (:import [org.gdal.gdal gdal]
            [org.gdal.gdal Driver]
            [org.gdal.gdal Dataset]
-           [org.gdal.gdalconst gdalconst]))
+           [org.gdal.gdalconst gdalconst]
+           [org.gdal.gdalconst gdalconstJNI]))
 
 ;; init and state constructs blatantly ripped off from the
 ;; USGS-EROS/lcmap-chipmunk project on GitHub, created by
@@ -48,6 +49,14 @@
 
 (mount/defstate gdal-init
   :start (init))
+
+; https://gdal.org/java/org/gdal/gdalconst/gdalconstConstants.html#GDT_Byte
+; GDT_Byte    (1) : Eight bit unsigned integer (data type)       -> 1
+; GDT_Float32 (6) : Thirty two bit floating point (data type) -> 6
+; GDT_UInt16  (2) : Sixteen bit unsigned integer (data type)   -> 2
+(def int8    (gdalconstJNI/GDT_Byte_get))
+(def int16   (gdalconstJNI/GDT_UInt16_get))
+(def float32 (gdalconstJNI/GDT_Float32_get))
 
 (defn create_geotiff
   [name values ulx uly projection data_type x_size y_size x_offset y_offset]
