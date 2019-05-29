@@ -5,7 +5,7 @@ services:
 - docker
 sudo: required
 env:
-- LD_LIBRARY_PATH=/usr/lib/jni C_INCLUDE_DIR=/usr/include/gdal
+- LD_LIBRARY_PATH=/usr/lib/jni;/usr/lib;/usr/lib/x86_64-linux-gnu C_INCLUDE_DIR=/usr/include/gdal
 before_install:
 - sudo apt-get update
 - sudo apt-get install gdal-bin libgdal-dev libgdal-java python-gdal -y
