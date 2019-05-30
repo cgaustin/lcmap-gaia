@@ -50,7 +50,7 @@
           tile "345678"
           date "2007-07-01"
           result (products/ppath product x y tile date)]
-      (is (= result {:name "TSC-111111-222222-2007-07-01.json", :prefix "json/2007/CU/345/678/TSC/111111/222222"})))))
+      (is (= result {:name "TSC-111111.0-222222.0-2007-07-01.json", :prefix "json/2007/CU/345/678/TSC/111111.0/222222.0"})))))
 
 (deftest chip-test
   (with-redefs [config {:region "CU"}
@@ -62,7 +62,7 @@
           tile "012345"
           query_day "2007-07-01"
           results (products/chip product cx cy tile query_day [] [])]
-      (is (= results {:data {"x" "111111", "y" "222222", "values" [1 2 3 4]} :path {:name "TSC-111111-222222-2007-07-01.json", :prefix "json/2007/CU/012/345/TSC/111111/222222"} :date "2007-07-01" :status "success"})))))
+      (is (= results {:data {"x" "111111", "y" "222222", "values" [1 2 3 4]} :path {:name "TSC-111111.0-222222.0-2007-07-01.json", :prefix "json/2007/CU/012/345/TSC/111111.0/222222.0"} :date "2007-07-01" :status "success"})))))
 
 (deftest generate-test
   (with-redefs [nemo/segments (fn [cx cy] [1 2 3])

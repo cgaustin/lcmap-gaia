@@ -62,9 +62,11 @@
 
 (defn ppath
   ([product x y tile date suffix]
-   (let [grid      (:region config)
-         name (->> [product x y date] (string/join "-") (#(str % suffix)))
-         prefix (get-prefix grid date tile "json" product x y)]
+   (let [grid (:region config)
+         fx   (util/float-string x)
+         fy   (util/float-string y)
+         name (->> [product fx fy date] (string/join "-") (#(str % suffix)))
+         prefix (get-prefix grid date tile "json" product fx fy)]
      {:name name :prefix prefix}))
   ([product x y tile date]
    (ppath product x y tile date ".json")))
