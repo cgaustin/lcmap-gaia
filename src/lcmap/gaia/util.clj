@@ -150,4 +150,8 @@
    (let [grid (first (file/read-json "resources/grid.conus.json"))]
      (get grid "proj"))))
 
+(defn float-string
+  "Ensure value is in float format"
+  [instring]
+  (-> instring (read-string) (float) (str)))
 
