@@ -1,6 +1,7 @@
 (ns lcmap.gaia.gdal
   (:require [mount.core :as mount]
             [lcmap.gaia.util :as util]
+            [clojure.stacktrace :as stacktrace]
             [clojure.tools.logging :as log])
   (:import [org.gdal.gdal gdal]
            [org.gdal.gdal Driver]
@@ -60,24 +61,38 @@
 
 (defn create_geotiff
   [name values ulx uly projection data_type x_size y_size x_offset y_offset]
-  (let [driver  (gdal/GetDriverByName "GTiff")
-        dataset (.Create driver name x_size y_size 1 data_type)
-        band    (.GetRasterBand dataset 1)
-        transform (double-array [ulx 30 0 uly 0 -30])]
-    (.SetGeoTransform dataset transform)
-    (.SetProjection dataset projection)
-    (.WriteRaster band x_offset y_offset x_size y_size (float-array values))
-    (.delete band)
-    (.delete dataset))
-  name)
+  (try
+    (let [driver  (gdal/GetDriverByName "GTiff")
+          dataset (.Create driver name x_size y_size 1 data_type)
+          band    (.GetRasterBand dataset 1)
+          transform (double-array [ulx 30 0 uly 0 -30])]
+      (.SetGeoTransform dataset transform)
+      (.SetProjection dataset projection)
+      (.WriteRaster band x_offset y_offset x_size y_size (float-array values))
+      (.delete band)
+      (.delete dataset))
+    name
+    (catch Exception e
+      (log/errorf "Exception in gdal/create_geotiff - name: %s ulx: %s uly: %s projection: %s data_type: %s x_size: %s y_size: %s x_offset: %s y_offset: %s stacktrace: %s"
+                  name ulx uly projection data_type x_size y_size x_offset y_offset (stacktrace/print-stack-trace e))
+      (throw (ex-info "Exception in gdal/create_geotiff" {:type "data-generation-error" 
+                                                          :message (.getMessage e)
+                                                          :name name 
+                                                          :data_type data_type })))))
 
 (defn update_geotiff
-  ([tiff_name values x_offset y_offset x_size y_size]
-   ;(log/infof "update_geotiff args, name: %s | x_offset: %s | y_offset: %s | x_size: %s | y_size: %s | type offset: %s" tiff_name x_offset y_offset x_size y_size (type x_offset))
-   (let [dataset (gdal/Open tiff_name 1)
-         band (.GetRasterBand dataset 1)]
-     (.WriteRaster band x_offset y_offset x_size y_size (float-array values))
-     (.delete band)
-     (.delete dataset)))
+  ([name values x_offset y_offset x_size y_size]
+   (try
+     (let [dataset (gdal/Open name 1)
+           band (.GetRasterBand dataset 1)]
+       (.WriteRaster band x_offset y_offset x_size y_size (float-array values))
+       (.delete band)
+       (.delete dataset))
+     (catch Exception e
+       (log/errorf "Exception in gdal/update_geotiff - name: %s x_offset: %s y_offset: %s x_size: %s y_size: %s stacktrace: %s "
+                   name x_offset y_offset x_size y_size (stacktrace/print-stack-trace e))
+       (throw (ex-info "Exception in gdal/update_geotiff" {:type "data-generation-error" 
+                                                           :message (.getMessage e)
+                                                           :name name})))))
   ([tiff_name values x_offset y_offset]
    (update_geotiff tiff_name values x_offset y_offset 100 100)))

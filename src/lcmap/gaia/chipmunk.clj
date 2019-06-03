@@ -3,6 +3,7 @@
   (:require [org.httpkit.client    :as http]
             [cheshire.core         :as json]
             [clojure.tools.logging :as log]
+            [clojure.stacktrace    :as stacktrace]
             [lcmap.gaia.config     :refer [config]]))
 
 (defn chips_url
@@ -15,12 +16,20 @@
 (defn nlcd
   "Return decoded NLCD chip values for the given X and Y coordinates"
   [x y]
-  (let [ubid "AUX_NLCD"
-        url (chips_url ubid x y)
-        response @(http/get url)
-        encoded (-> (:body response) (json/decode) (first) (get "data"))
-        decoded (.decode (Base64/getDecoder) encoded)]
-    (mapv int decoded)))
+  (try
+    (let [ubid "AUX_NLCD"
+          url (chips_url ubid x y)
+          response @(http/get url)
+          encoded (-> (:body response) (json/decode) (first) (get "data"))
+          decoded (.decode (Base64/getDecoder) encoded)]
+      (mapv int decoded))
+    (catch Exception e
+      (log/errorf "Exception in chipmunk/nlcd for x %s y %s stacktrace: %s" 
+                  x y (stacktrace/print-stack-trace e))
+      (throw (ex-info "Exception retrieving chipmunk/nlcd" {:type "data-request-error" 
+                                                            :message (.getMessage e) 
+                                                            :x x 
+                                                            :y y})))))
 
 (defn binary
   [val]

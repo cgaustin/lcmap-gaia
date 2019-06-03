@@ -29,9 +29,23 @@
     (let [map_path (raster/create_geotiff body)]
       {:status 200 :body (assoc (dissoc body :chips) :map_name (:name map_path) :map_prefix (:prefix map_path) :map_url (:url map_path))})
     (catch Exception e
-      (log/errorf "Exception in server/raster-gen ! args: %s - message: %s - data: %s - stacktrace: %s" body (.getMessage e) (ex-data e) (-> e stacktrace/print-stack-trace with-out-str))
-      {:status 500 :body (assoc body :error (str "problem processing /raster request: " (.getMessage e))
-                                     :data (ex-data e))})))
+      (let [ex_data       (ex-data e)
+            ex_type       (:type ex_data)
+            ex_message    (:message ex_data)
+            body_no_chips (dissoc body :chips)
+            message       (.getMessage e)
+            response      (fn [msg details] (hash-map :status 500 :body {:input body_no_chips :message msg :details details}))]
+        (log/errorf "Exception in server/raster-gen ! args (minus chips): %s - message: %s - data: %s - stacktrace: %s" 
+                    body_nos_chips message ex_data (stacktrace/print-stack-trace e))
+        (cond
+         (= "data-generation-error" ex_type)
+         (response "problem creating data" ex_message)
+
+         (= "data-request-error" ex_type)
+         (response "problem retrieving input data" ex_message)
+
+         :else
+         (response "problem handling this request" "contact HelpDesk"))))))
 
 (defn raster-fetch
   [{:keys [body] :as req}]
@@ -47,10 +61,22 @@
         {:status 200 :body (dissoc results :failures)}
         {:status 400 :body results}))
     (catch Exception e
-      (log/errorf "Exception in server/product-gen ! args: %s - message: %s - data: %s stacktrace:  %s" 
-                  body (.getMessage e) (ex-data e) (-> e stacktrace/print-stack-trace with-out-str))
-      {:status 500 :body (assoc body :error (str "problem processing /product request: " (.getMessage e))
-                                     :data (ex-data e))})))
+      (let [ex_data       (ex-data e)
+            ex_type       (:type ex_data)
+            ex_message    (:message ex_data)
+            message       (.getMessage e)
+            response      (fn [msg details] (hash-map :status 500 :body {:inputs body :message msg :details details}))]
+        (log/errorf "Exception in server/product-gen ! args (minus chips): %s - message: %s - data: %s - stacktrace: %s" 
+                    body_nos_chips message ex_data (stacktrace/print-stack-trace e))
+        (cond
+         (= "data-generation-error" ex_type)
+         (response "problem creating data" ex_message)
+
+         (= "data-request-error" ex_type)
+         (response "problem retrieving input data" ex_message)
+
+         :else
+         (response "problem handling this request" "contact HelpDesk"))))))
 
 (defn product-fetch
   [{:keys [body] :as req}]

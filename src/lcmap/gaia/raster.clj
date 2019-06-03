@@ -1,13 +1,16 @@
 (ns lcmap.gaia.raster
-  (:require [clojure.tools.logging :as log]
-            [clojure.java.io :as io]
-            [lcmap.gaia.products :as products]
-            [lcmap.gaia.nemo :as nemo]
-            [lcmap.gaia.file :as file]
-            [lcmap.gaia.gdal :as gdal]
-            [lcmap.gaia.util :as util]
-            [lcmap.gaia.storage :as storage]
-            [lcmap.gaia.chipmunk :as chipmunk]))
+  (:require [again.core            :as again]
+            [clojure.tools.logging :as log]
+            [clojure.java.io       :as io]
+            [clojure.stacktrace    :as stacktrace]
+            [lcmap.gaia.config     :refer [config]]
+            [lcmap.gaia.chipmunk   :as chipmunk]
+            [lcmap.gaia.file       :as file]
+            [lcmap.gaia.gdal       :as gdal]
+            [lcmap.gaia.nemo       :as nemo]
+            [lcmap.gaia.products   :as products]
+            [lcmap.gaia.storage    :as storage]
+            [lcmap.gaia.util       :as util]))
 
 ;; a tile is 50 chips x 50 chips
 ;; each chip is 100 pixels x 100 pixels
@@ -53,8 +56,8 @@
               :let [cx (:cx chip)
                     cy (:cy chip)
                     chip_path (products/ppath product cx cy tile date)
-                    chip_data (storage/get_json chip_path)
-                    chip_vals (nlcd_filter (get chip_data "values") product cx cy)]]
+                    chip_data (again/with-retries (:retry_strategy config) (storage/get_json chip_path))
+                    chip_vals (again/with-retries (:retry_strategy config) (nlcd_filter (get chip_data "values") product cx cy))]]
         (log/debugf "adding %s to tile: %s" (:name chip_path) tile)
         (if chip_data
           (add_chip_to_tile (:name map_path) chip_vals tilex tiley cx cy)
@@ -65,7 +68,10 @@
       (io/delete-file (:name map_path))
       map_path
       (catch Exception e
-        (log/errorf "Exception in raster/create_geotiff ! args: %s - message: %s - data: %s - exception: %s" (dissoc all :chips) (.getMessage e) (ex-data e) e)
-        (throw (ex-info "Exception creating geotiff!" {:map_path map_path :ex_data (ex-data e) :message (.getMessage e)}))))))
+        (log/errorf "Exception in raster/create_geotiff - args: %s - message: %s - data: %s - stacktrace: %s"
+                    (dissoc all :chips) (.getMessage e) (ex-data e) (stacktrace/print-stack-trace e))
+        (throw (ex-info "Exception in raster/create_geotiff" {:type "data-generation-error" 
+                                                              :message (.getMessage e)
+                                                              :map_path map_path }))))))
 
 

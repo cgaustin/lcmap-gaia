@@ -1,6 +1,5 @@
 (ns lcmap.gaia.product-specs
-  (:require [clojure.spec.alpha :as spec]
-            [lcmap.gaia.validation :as validation]))
+  (:require [clojure.spec.alpha :as spec]))
 
 (spec/def ::intr float?)
 (spec/def ::magr float?)
@@ -95,28 +94,28 @@
 
 (defn segment_check
   [segment]
-  (check! ::segment segment {:type :segment-exception :cause :validation-failure}))
+  (check! ::segment segment           {:message "segment-exception"      :type "data-request-error"}))
 
 (defn prediction_check
   [prediction]
-  (check! ::prediction prediction {:type :prediction-exception :cause :validation-failure}))
+  (check! ::prediction prediction     {:message "prediction-exception"   :type "data-request-error"}))
 
 (defn segment_coll_check
   [segments]
-  (check! ::segments segments {:type :segments-exception :cause :validation-failure}))
+  (check! ::segments segments         {:message "segments-exception"     :type "data-request-error"}))
 
 (defn prediction_coll_check
   [predictions]
-  (check! ::predictions predictions {:type :predictions-exception :cause :validation-failure}))
+  (check! ::predictions predictions   {:message "predictions-exception"  :type "data-request-error"}))
 
 (defn product_type_check
   [product_type]
-  (check! ::product_type product_type {:type :product-type-exception :cause :validation-failure}))
+  (check! ::product_type product_type {:message "product-type-exception" :type "data-request-error"}))
 
 (defn date_fmt_check
   [date_str]
-  (check! ::days date_str {:type :date-format-exception :cause :validation-failure}))
+  (check! ::days date_str             {:message "date-format-exception"  :type "data-request-error"}))
 
 (defn output_check
   [output_values]
-  (check! ::count_ten_thousand output_values {:type :output-size-exception :cause :data-failure}))
+  (check! ::count_ten_thousand output_values {:message "output-size-exception" :type "data-generation-error"}))
