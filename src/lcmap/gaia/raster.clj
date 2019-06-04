@@ -52,6 +52,7 @@
         data_type (:type (get products/product_details product))]
     (try
       (create_blank_tile_tiff (:name map_path) tilex tiley projection data_type)
+
       (doseq [chip chips
               :let [cx (:cx chip)
                     cy (:cy chip)
@@ -59,9 +60,8 @@
                     chip_data (again/with-retries (:retry_strategy config) (storage/get_json chip_path))
                     chip_vals (again/with-retries (:retry_strategy config) (nlcd_filter (get chip_data "values") product cx cy))]]
         (log/debugf "adding %s to tile: %s" (:name chip_path) tile)
-        (if chip_data
-          (add_chip_to_tile (:name map_path) chip_vals tilex tiley cx cy)
-          (log/debugf "no data to add to tile %s at cx: %s | cy: %s" tile cx cy)))
+        (add_chip_to_tile (:name map_path) chip_vals tilex tiley cx cy)
+
       (log/infof "pushing tiff to object storage: %s" map_path)
       (storage/put_tiff map_path (:name map_path))
       (log/infof "deleting local tiff: %s" (:name map_path))
