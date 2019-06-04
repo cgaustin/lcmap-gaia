@@ -161,6 +161,8 @@
 
 (defn float-string
   "Ensure value is in float format"
-  [instring]
-  (-> instring (read-string) (float) (str)))
+  [input]
+  (if (number? input)
+    (-> input (float) (str))
+    (-> input (read-string) (float) (str))))
 
