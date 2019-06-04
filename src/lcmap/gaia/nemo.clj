@@ -21,9 +21,11 @@
         response @(http/get url options)]
     (if (= 200 (:status response))
       (parse_body response)
-      (throw (ex-info "Nemo Error - non-200 /segment response" 
-                      {:type :nemo-request-failure :cause :data-failure 
-                       :status (:status response) :url url})))))
+      (do (log/debugf "Error requesting segments data from Nemo - url: %s  response: %s" url response)
+          (throw (ex-info "Error requesting segments data from Nemo" {:type "data-request-error"
+                                                                      :message "non-200 response from nemo for segments data"
+                                                                      :status (:status response) 
+                                                                      :url url}))))))
 
 (defn predictions
   [x y]
@@ -32,7 +34,9 @@
         response @(http/get url options)]
     (if (= 200 (:status response))
       (parse_body response)
-      (throw (ex-info "Nemo Error - non-200 /annual_prediction response" 
-                      {:type :nemo-request-failure :cause :data-failure 
-                       :status (:status response) :url url})))))
+      (do (log/debugf "Error requesting predictions data from Nemo - url: %s  response: %s" url response)
+          (throw (ex-info "Error requesting predictions data from Nemo" {:type "data-request-error"
+                                                                         :message "non-200 response from nemo for predictions data"
+                                                                         :status (:status response) 
+                                                                         :url url}))))))
 

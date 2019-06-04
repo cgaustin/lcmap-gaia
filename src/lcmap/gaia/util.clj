@@ -1,12 +1,14 @@
 (ns lcmap.gaia.util
   (:gen-class)
-  (:require [java-time :as jt]
-            [cheshire.core :as json]
-            [clojure.string :as string]
-            [lcmap.gaia.config :refer [config]]
-            [environ.core :as environ]
-            [org.httpkit.client :as http]
-            [lcmap.gaia.file :as file]))
+  (:require [cheshire.core         :as json]
+            [clojure.string        :as string]
+            [clojure.stacktrace    :as stacktrace]
+            [clojure.tools.logging :as log]
+            [environ.core          :as environ]
+            [java-time             :as jt]
+            [org.httpkit.client    :as http]
+            [lcmap.gaia.file       :as file]
+            [lcmap.gaia.config     :refer [config]]))
 
 (def gregorian_day_one (jt/local-date 0001 1))
 (def date_pattern (re-pattern #"[0-9]{4}-[0-9]{2}-[0-9]{2}"))
@@ -142,16 +144,25 @@
 
 (defn get-projection
   ([]
-   (let [grid_resource (str (:chipmunk-host environ/env) "/grid")
-         grid_response (http/get grid_resource)
-         json_body (first (json/parse-string (:body @grid_response)))]
-     (get json_body "proj")))
+   (try
+     (let [grid_resource (str (:chipmunk-host environ/env) "/grid")
+           grid_response (http/get grid_resource)
+           json_body (first (json/parse-string (:body @grid_response)))]
+       (get json_body "proj"))
+     (catch Exception e
+       (log/errorf "Exception in util/get-projection - url: %s stacktrace: %s" 
+                   (str (:chipmunk-host environ/env) "/grid") (stacktrace/print-stack-trace e))
+       (throw (ex-info "Exception in util/get-projection" {:type "data-request-error" 
+                                                           :message (.getMessage e) 
+                                                           :url (str (:chipmunk-host environ/env) "/grid")})))))
   ([local]
    (let [grid (first (file/read-json "resources/grid.conus.json"))]
      (get grid "proj"))))
 
 (defn float-string
   "Ensure value is in float format"
-  [instring]
-  (-> instring (read-string) (float) (str)))
+  [input]
+  (if (number? input)
+    (-> input (float) (str))
+    (-> input (read-string) (float) (str))))
 

@@ -77,10 +77,13 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn product-exception-handler
   [exception product_name]
-  (let [type_name (keyword (str product_name "-exception"))
+  (let [type    (keyword (str product_name "-exception"))
         message (str "Error calculating " product_name)]
-    (log/errorf (str message exception))
-    (throw (ex-info message {:type type_name :cause :product-failure :exception exception}))))
+    (log/errorf "%s: %s  stacktrace: %s" 
+                message product_name (stacktrace/print-stack-trace exception))
+    (throw (ex-info message {:type "data-generation-error" 
+                             :message type 
+                             :exception exception}))))
 
 (defn time-of-change
   "Return numeric day of year in which a break occurs"
@@ -458,9 +461,12 @@
           predictions (get (:predictions inputs) (:pixelxy inputs))]
       (hash-map {:px pixelx :py pixely} (hash-map :segments segments :predictions predictions)))
     (catch Exception e
-      (log/errorf "Exception in products/pixel_map - pixelxy: %s exception-message: %s  stacktrace: %s " 
-                  (:pixelxy inputs) (.getMessage e) (-> e stacktrace/print-stack-trace with-out-str))
-      (throw (ex-info "Exception in product/pixel_map" {:source "products/pixel_map" :args-keys (keys inputs) :args-xy (:pixelxy inputs) :error-message (.getMessage e)})))))
+      (log/errorf "Exception in products/pixel_map - pixelxy: %s message: %s  stacktrace: %s " 
+                  (:pixelxy inputs) (.getMessage e) (stacktrace/print-stack-trace e))
+      (throw (ex-info "Exception in product/pixel_map" {:type "data-generation-error"
+                                                        :message (.getMessage e)
+                                                        :arguments (keys inputs)
+                                                        :pixelxy (:pixelxy inputs)})))))
 
 (defn pixel_groups
   [injson]
@@ -483,10 +489,12 @@
           flattened (util/flatten-vals sorted-y-rows :val)]
       flattened)
     (catch Exception e
-      (log/errorf "Exception in products/flatten_values - input count: %s first input: %s last input: %s exception-message: %s  stacktrace: %s " 
+      (log/errorf "Exception in products/flatten_values - input count: %s first input: %s last input: %s message: %s  stacktrace: %s " 
                   (count product_value_collection) (first product_value_collection) (last product_value_collection) (.getMessage e) 
-                  (-> e stacktrace/print-stack-trace with-out-str))
-      (throw (ex-info "Exception in products/flatten_values" {:source "products/flatten_values" :input-count (count product_value_collection) :message (.getMessage e)})))))
+                  (stacktrace/print-stack-trace e))
+      (throw (ex-info "Exception in products/flatten_values" {:type "data-generation-error"
+                                                              :message (.getMessage e)
+                                                              :arg_count (count product_value_collection)})))))
 
 (defn values
   "Returns a 1-d collection of product values"
@@ -540,5 +548,8 @@
 
       {:failures failures :products products :cx cx :cy cy :dates dates})
     (catch Exception e
-      (log/errorf "Exception in products/generation ! args: %s -  message: %s - data: %s - stacktrace: %s" all (.getMessage e) (ex-data e) (-> e stacktrace/print-stack-trace with-out-str))
-      (throw (ex-info "Exception in product generation" {:data (ex-data e) :error-message (.getMessage e) :args all})))))
+      (log/errorf "Exception in products/generation - args: %s  message: %s  data: %s  stacktrace: %s"
+                  all (.getMessage e) (ex-data e) (stacktrace/print-stack-trace e))
+      (throw (ex-info "Exception in products/generate" {:type "data-generation-error"
+                                                        :message (.getMessage e)
+                                                        :args all})))))

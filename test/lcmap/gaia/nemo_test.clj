@@ -26,4 +26,4 @@
   (with-fake-http [{:url faux_nemo_segments_url :method :get} {:status 500 :body nil}
                    {:url faux_nemo_predictions_url :method :get} {:status 404 :body "err"}]
     (with-redefs [config/config faux_config]
-      (is (thrown-with-msg? Exception #"Nemo Error" (nemo/segments 999 666))))))
+      (is (thrown-with-msg? Exception #"Error requesting segments data from Nemo" (nemo/segments 999 666))))))
