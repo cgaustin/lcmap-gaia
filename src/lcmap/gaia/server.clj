@@ -36,7 +36,7 @@
             message       (.getMessage e)
             response      (fn [msg details] (hash-map :status 500 :body {:input body_no_chips :message msg :details details}))]
         (log/errorf "Exception in server/raster-gen ! args (minus chips): %s - message: %s - data: %s - stacktrace: %s" 
-                    body_nos_chips message ex_data (stacktrace/print-stack-trace e))
+                    body_no_chips message ex_data (stacktrace/print-stack-trace e))
         (cond
          (= "data-generation-error" ex_type)
          (response "problem creating data" ex_message)
@@ -67,7 +67,7 @@
             message       (.getMessage e)
             response      (fn [msg details] (hash-map :status 500 :body {:inputs body :message msg :details details}))]
         (log/errorf "Exception in server/product-gen ! args (minus chips): %s - message: %s - data: %s - stacktrace: %s" 
-                    body_nos_chips message ex_data (stacktrace/print-stack-trace e))
+                    body message ex_data (stacktrace/print-stack-trace e))
         (cond
          (= "data-generation-error" ex_type)
          (response "problem creating data" ex_message)
