@@ -60,7 +60,7 @@
                     chip_data (again/with-retries (:retry_strategy config) (storage/get_json chip_path))
                     chip_vals (again/with-retries (:retry_strategy config) (nlcd_filter (get chip_data "values") product cx cy))]]
         (log/debugf "adding %s to tile: %s" (:name chip_path) tile)
-        (add_chip_to_tile (:name map_path) chip_vals tilex tiley cx cy)
+        (add_chip_to_tile (:name map_path) chip_vals tilex tiley cx cy))
 
       (log/infof "pushing tiff to object storage: %s" map_path)
       (storage/put_tiff map_path (:name map_path))
@@ -73,5 +73,3 @@
         (throw (ex-info "Exception in raster/create_geotiff" {:type "data-generation-error" 
                                                               :message (.getMessage e)
                                                               :map_path map_path }))))))
-
-
