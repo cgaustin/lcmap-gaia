@@ -65,8 +65,8 @@
 
 (spec/def ::count_nine #(= 9 (count %)))
 (spec/def ::prob (spec/and ::count_nine ::doubles))
-(spec/def ::date ::days)
-(spec/def ::prediction (spec/keys :req-un [::cx ::cy ::px ::py ::sday ::eday ::date ::prob]))
+(spec/def ::pday ::days)
+(spec/def ::prediction (spec/keys :req-un [::cx ::cy ::px ::py ::sday ::eday ::pday ::prob]))
 (spec/def ::predictions (spec/coll-of ::prediction))
 
 (spec/def ::product_type #(contains? #{"annual-change" "curve-fit" "length-of-segment"  "magnitude-of-change" 

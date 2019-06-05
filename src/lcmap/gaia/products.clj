@@ -232,7 +232,7 @@
   "Returns the 'date' value from a collection of predictions for the first occurence of a given classification"
   [sorted_predictions class_val]
   (let [matching_predictions (filter (fn [i] (= class_val (get-class (:prob i)))) sorted_predictions)]
-      (:date (first matching_predictions))))
+      (:pday (first matching_predictions))))
 
 (defn mean-probabilities
   "Returns a 1-d collection of mean probabilities given a collection of probabilities "
@@ -285,7 +285,7 @@
         growth  (> burn_ratio 0.05)
         decline (< burn_ratio -0.05)
         segment_probabilities (filter (fn [i] (= (-> i (:sday) (util/to-ordinal)) sday)) probabilities)
-        sorted_probabilities  (util/sort-by-key segment_probabilities :date)
+        sorted_probabilities  (util/sort-by-key segment_probabilities :pday)
         classification (classify (merge segment {:probabilities sorted_probabilities}) query_day rank burn_ratio)]
     (hash-map :intersects     intersects
               :precedes_sday  precedes_sday
