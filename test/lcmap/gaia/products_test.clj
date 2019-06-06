@@ -151,8 +151,14 @@
     (is (= (products/falls-between-bday-sday map_a map_b) expected))))
 
 (deftest nbr_test
-  (let [first_nbr (products/nbr (first tr/first_sorted_segments))
-        last_nbr  (products/nbr (last tr/first_sorted_segments))]
+  (let [first_seg (first tr/first_sorted_segments)
+        first_sday (-> first_seg (:sday) (util/to-ordinal))
+        first_eday (-> first_seg (:eday) (util/to-ordinal))
+        last_seg (last tr/first_sorted_segments)
+        last_sday (-> last_seg (:sday) (util/to-ordinal))
+        last_eday (-> last_seg (:eday) (util/to-ordinal))
+        first_nbr (products/normalized-burn-ratio first_seg first_sday first_eday)
+        last_nbr  (products/normalized-burn-ratio last_seg last_sday last_eday)]
     (is (> first_nbr 0.12))
     (is (< first_nbr 0.14))
     (is (> last_nbr  0.33))
@@ -176,7 +182,8 @@
            (products/mean-probabilities preds)))))
 
 (deftest classify_positive_nbr_test
-   (let [model (merge (first tr/first_sorted_segments) {:probabilities tr/grass_to_forest_probs})
+   (let [probs (map products/convert_prediction_dates tr/grass_to_forest_probs)
+         model (merge (first tr/first_sorted_segments) {:probabilities probs})
          post_forest_query_date (-> "2001-07-01" (util/to-ordinal))
          pre_forest_query_date (-> "1998-07-01" (util/to-ordinal))
          nbrdiff (float 0.06)]
@@ -187,7 +194,8 @@
      (is (= 4 (products/classify model pre_forest_query_date 1 nbrdiff)))))
 
 (deftest classify_negative_nbr_test
-  (let [model (merge (first tr/first_sorted_segments) {:probabilities tr/forest_to_grass_probs})
+  (let [probs (map products/convert_prediction_dates tr/forest_to_grass_probs)
+        model (merge (first tr/first_sorted_segments) {:probabilities probs})
         post_grass_query_date (-> "2001-07-01" (util/to-ordinal))
         pre_grass_query_date (-> "1998-07-01" (util/to-ordinal))
         nbrdiff (float -0.06)]
@@ -200,31 +208,36 @@
 (deftest classify_else_test
   (let [first_segment (first tr/first_sorted_segments)
         sday (-> first_segment (:sday) (util/to-ordinal))
-        nbrdiff (products/nbr first_segment)
-        segment_probabilities (filter (fn [i] (= (util/to-ordinal (:sday i)) sday)) (:predictions tr/first_segments_predictions))
-        sorted_probabilities (util/sort-by-key segment_probabilities :date)
+        eday (-> first_segment (:eday) (util/to-ordinal))
+        nbrdiff (products/normalized-burn-ratio first_segment sday eday)
+        probs (map products/convert_prediction_dates (:predictions tr/first_segments_predictions))
+        segment_probabilities (filter (fn [i] (= (:sday i) sday)) probs)
+        sorted_probabilities (util/sort-by-key segment_probabilities :pday)
         segment_model (merge first_segment {:probabilities sorted_probabilities})]
     (is (= 7 (products/classify segment_model tr/query_ord 0 nbrdiff)))))
 
 (deftest characterize_segment_test
-  (with-redefs [products/nbr (fn [i] 66)
+  (with-redefs [products/normalized-burn-ratio (fn [i x z] 66)
                 products/classify (fn [a b c d] 99)]
-    (let [segment {:sday "1990-04-27" :eday "2000-06-11" :bday "2000-06-11"}
+    (let [_19900427 (-> "1990-04-27" (util/to-ordinal))
+          _19950701 (-> "1995-07-01" (util/to-ordinal))
+          _20000611 (-> "2000-06-11" (util/to-ordinal))
+          segment   {:sday "1990-04-27" :eday "2000-06-11" :bday "2000-06-11"}
           query_day (-> "1998-07-01" (util/to-ordinal))
-          probabilities [{:sday "1990-04-27" :date "1995-07-01"} 
-                         {:sday "2000-07-10" :date "2001-07-01"}]
-          characterized (products/characterize_segment segment query_day probabilities 0)]
+          probabilities [{:sday _19900427 :pday _19950701} 
+                         {:sday (-> "2000-07-10" (util/to-ordinal)) :pday (-> "2001-07-01" (util/to-ordinal))}]
+          characterized (products/characterize-segment segment query_day probabilities 0)]
       (is (= characterized {:intersects true
                             :precedes_sday false
                             :follows_eday false
                             :follows_bday false
                             :btw_eday_bday false
-                            :sday (-> "1990-04-27" (util/to-ordinal))
-                            :eday (-> "2000-06-11" (util/to-ordinal))
-                            :bday (-> "2000-06-11" (util/to-ordinal))
+                            :sday _19900427
+                            :eday _20000611 
+                            :bday _20000611
                             :growth true
                             :decline false
-                            :probabilities '({:sday "1990-04-27", :date "1995-07-01"})
+                            :probabilities [{:sday _19900427 , :pday  _19950701}]
                             :classification 99})))))
 
 (deftest landcover_test ; first segment -> sday 1982-12-27 bday 2001-10-04 eday 2001-09-10
@@ -299,12 +312,12 @@
            (products/confidence segs_probs ordinal_1995 0)))
 
     ; query date falls between a segments start date and end date and decline is true
-    (with-redefs [products/nbr (fn [i] -0.66)]
+    (with-redefs [products/normalized-burn-ratio (fn [i x s] -0.66)]
       (is (= (:lcc_decline (:lc_defaults config))
              (products/confidence segs_probs ordinal_1995 0))))
 
     ; query date falls between a segments start and end date, neither growth nor decline
-    (with-redefs [products/nbr (fn [i] 0.01)]
+    (with-redefs [products/normalized-burn-ratio (fn [i x s] 0.01)]
       (is (= 8 (products/confidence segs_probs ordinal_1995 0))))
 
     ; query date falls between segments of same landcover classification and fill_samelc config is true
@@ -315,25 +328,25 @@
     (is (= (:lcc_difflc (:lc_defaults config))
            (products/confidence segs_probs ordinal_2001 0)))))
 
-(deftest pixel_map_test
+(deftest pixel-map_test
   (let [inmap {:pixelxy [1 2] :segments {[1 2] [:a :b :c]} :predictions {[1 2] [:d :e :f]}}]
-    (is (= (products/pixel_map inmap) {{:px 1 :py 2} {:segments [:a :b :c] :predictions [:d :e :f]}}))))
+    (is (= (products/pixel-map inmap) {{:px 1 :py 2} {:segments [:a :b :c] :predictions [:d :e :f]}}))))
 
-(deftest pixel_groups_test
+(deftest pixel-groups_test
   (let [inmaps [{:px 1 :py 2 :foo "bar"} {:px 1 :py 2 :foo "too"} 
                 {:px 3 :py 4 :foo "shizzle"} {:px 3 :py 4 :foo "baz"}]
-        value (products/pixel_groups inmaps)] 
+        value (products/pixel-groups inmaps)] 
     (is (= (count value) 2))
     (is (= (keys value) '([1 2] [3 4])))))
 
-(deftest flatten_product_data_test
+(deftest flatten-values_data_test
   ; lower left pixel value should be the first item in returned collection
   (let [input [{:pixely 3159045, :pixelx -2114775, :val 2} ; lower left
                {:pixely 3159045, :pixelx -2114745, :val 4} ; lower right
                {:pixely 3159075, :pixelx -2114775, :val 6} ; upper left
                {:pixely 3159075, :pixelx -2114745, :val 8} ; upper right
                ]]
-    (is (= (products/flatten_values input)
+    (is (= (products/flatten-values input)
            [6 8 2 4]))))
 
 (deftest values_test
@@ -348,7 +361,9 @@
     ; products/data should throw an exception when its output is too small
     (is (thrown-with-msg? Exception #"Validation Error" (products/values first_seg first_pred product query_day)))
     ; requesting a landcover product with no predictions should throw an exception
-    (is (thrown-with-msg? Exception #"Exception in products/flatten_values" (products/values segs [] "primary-landcover" query_day)))
+    ;(is (thrown-with-msg? Exception #"Exception in products/flatten_values" (products/values segs [] "primary-landcover" query_day)))
+    (is (= '(0) (distinct (products/values segs [] "primary-landcover" query_day))))
+    (is (= 10000 (count (products/values segs [] "primary-landcover" query_day))))
     ; requesting a change product with no predictions is valid
     (is (= 2915 (nth (products/values segs [] product query_day) 5)))))
 

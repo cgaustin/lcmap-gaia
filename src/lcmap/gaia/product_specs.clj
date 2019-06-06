@@ -64,8 +64,8 @@
 
 (spec/def ::count_nine #(= 9 (count %)))
 (spec/def ::prob (spec/and ::count_nine ::doubles))
-(spec/def ::date ::days)
-(spec/def ::prediction (spec/keys :req-un [::cx ::cy ::px ::py ::sday ::eday ::date ::prob]))
+(spec/def ::pday ::days)
+(spec/def ::prediction (spec/keys :req-un [::cx ::cy ::px ::py ::sday ::eday ::pday ::prob]))
 (spec/def ::predictions (spec/coll-of ::prediction))
 
 (spec/def ::product_type #(contains? #{"annual-change" "curve-fit" "length-of-segment"  "magnitude-of-change" 
@@ -88,9 +88,21 @@
                (throw))
       (spec/conform spec params)))
 
-(defn segment_valid?
+(defn segment-valid?
   [segment]
   (nil? (spec/explain-data ::segment segment)))
+
+(defn segments-valid?
+  [segments]
+  (nil? (spec/explain-data ::segments segments)))
+
+(defn prediction-valid?
+  [prediction]
+  (nil? (spec/explain-data ::prediction prediction)))
+
+(defn predictions-valid?
+  [predictions]
+  (nil? (spec/explain-data ::predictions predictions)))
 
 (defn segment_check
   [segment]
