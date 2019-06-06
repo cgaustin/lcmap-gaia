@@ -151,8 +151,14 @@
     (is (= (products/falls-between-bday-sday map_a map_b) expected))))
 
 (deftest nbr_test
-  (let [first_nbr (products/normalized-burn-ratio (first tr/first_sorted_segments))
-        last_nbr  (products/normalized-burn-ratio (last tr/first_sorted_segments))]
+  (let [first_seg (first tr/first_sorted_segments)
+        first_sday (-> first_seg (:sday) (util/to-ordinal))
+        first_eday (-> first_seg (:eday) (util/to-ordinal))
+        last_seg (last tr/first_sorted_segments)
+        last_sday (-> last_seg (:sday) (util/to-ordinal))
+        last_eday (-> last_seg (:eday) (util/to-ordinal))
+        first_nbr (products/normalized-burn-ratio first_seg first_sday first_eday)
+        last_nbr  (products/normalized-burn-ratio last_seg last_sday last_eday)]
     (is (> first_nbr 0.12))
     (is (< first_nbr 0.14))
     (is (> last_nbr  0.33))
@@ -176,7 +182,8 @@
            (products/mean-probabilities preds)))))
 
 (deftest classify_positive_nbr_test
-   (let [model (merge (first tr/first_sorted_segments) {:probabilities tr/grass_to_forest_probs})
+   (let [probs (map products/convert_prediction_dates tr/grass_to_forest_probs)
+         model (merge (first tr/first_sorted_segments) {:probabilities probs})
          post_forest_query_date (-> "2001-07-01" (util/to-ordinal))
          pre_forest_query_date (-> "1998-07-01" (util/to-ordinal))
          nbrdiff (float 0.06)]
@@ -187,7 +194,8 @@
      (is (= 4 (products/classify model pre_forest_query_date 1 nbrdiff)))))
 
 (deftest classify_negative_nbr_test
-  (let [model (merge (first tr/first_sorted_segments) {:probabilities tr/forest_to_grass_probs})
+  (let [probs (map products/convert_prediction_dates tr/forest_to_grass_probs)
+        model (merge (first tr/first_sorted_segments) {:probabilities probs})
         post_grass_query_date (-> "2001-07-01" (util/to-ordinal))
         pre_grass_query_date (-> "1998-07-01" (util/to-ordinal))
         nbrdiff (float -0.06)]
@@ -200,31 +208,36 @@
 (deftest classify_else_test
   (let [first_segment (first tr/first_sorted_segments)
         sday (-> first_segment (:sday) (util/to-ordinal))
-        nbrdiff (products/normalized-burn-ratio first_segment)
-        segment_probabilities (filter (fn [i] (= (util/to-ordinal (:sday i)) sday)) (:predictions tr/first_segments_predictions))
-        sorted_probabilities (util/sort-by-key segment_probabilities :date)
+        eday (-> first_segment (:eday) (util/to-ordinal))
+        nbrdiff (products/normalized-burn-ratio first_segment sday eday)
+        probs (map products/convert_prediction_dates (:predictions tr/first_segments_predictions))
+        segment_probabilities (filter (fn [i] (= (:sday i) sday)) probs)
+        sorted_probabilities (util/sort-by-key segment_probabilities :pday)
         segment_model (merge first_segment {:probabilities sorted_probabilities})]
     (is (= 7 (products/classify segment_model tr/query_ord 0 nbrdiff)))))
 
 (deftest characterize_segment_test
-  (with-redefs [products/normalized-burn-ratio (fn [i] 66)
+  (with-redefs [products/normalized-burn-ratio (fn [i x z] 66)
                 products/classify (fn [a b c d] 99)]
-    (let [segment {:sday "1990-04-27" :eday "2000-06-11" :bday "2000-06-11"}
+    (let [_19900427 (-> "1990-04-27" (util/to-ordinal))
+          _19950701 (-> "1995-07-01" (util/to-ordinal))
+          _20000611 (-> "2000-06-11" (util/to-ordinal))
+          segment   {:sday "1990-04-27" :eday "2000-06-11" :bday "2000-06-11"}
           query_day (-> "1998-07-01" (util/to-ordinal))
-          probabilities [{:sday "1990-04-27" :date "1995-07-01"} 
-                         {:sday "2000-07-10" :date "2001-07-01"}]
+          probabilities [{:sday _19900427 :pday _19950701} 
+                         {:sday (-> "2000-07-10" (util/to-ordinal)) :pday (-> "2001-07-01" (util/to-ordinal))}]
           characterized (products/characterize-segment segment query_day probabilities 0)]
       (is (= characterized {:intersects true
                             :precedes_sday false
                             :follows_eday false
                             :follows_bday false
                             :btw_eday_bday false
-                            :sday (-> "1990-04-27" (util/to-ordinal))
-                            :eday (-> "2000-06-11" (util/to-ordinal))
-                            :bday (-> "2000-06-11" (util/to-ordinal))
+                            :sday _19900427
+                            :eday _20000611 
+                            :bday _20000611
                             :growth true
                             :decline false
-                            :probabilities '({:sday "1990-04-27", :date "1995-07-01"})
+                            :probabilities [{:sday _19900427 , :pday  _19950701}]
                             :classification 99})))))
 
 (deftest landcover_test ; first segment -> sday 1982-12-27 bday 2001-10-04 eday 2001-09-10
@@ -299,12 +312,12 @@
            (products/confidence segs_probs ordinal_1995 0)))
 
     ; query date falls between a segments start date and end date and decline is true
-    (with-redefs [products/normalized-burn-ratio (fn [i] -0.66)]
+    (with-redefs [products/normalized-burn-ratio (fn [i x s] -0.66)]
       (is (= (:lcc_decline (:lc_defaults config))
              (products/confidence segs_probs ordinal_1995 0))))
 
     ; query date falls between a segments start and end date, neither growth nor decline
-    (with-redefs [products/normalized-burn-ratio (fn [i] 0.01)]
+    (with-redefs [products/normalized-burn-ratio (fn [i x s] 0.01)]
       (is (= 8 (products/confidence segs_probs ordinal_1995 0))))
 
     ; query date falls between segments of same landcover classification and fill_samelc config is true

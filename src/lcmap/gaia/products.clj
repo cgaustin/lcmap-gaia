@@ -36,6 +36,11 @@
       (catch NullPointerException e
         false))))
 
+(defn convert_prediction_dates 
+  [inpred]
+  (let [to-ord #(util/to-ordinal (% inpred))]
+    (merge inpred {:sday (to-ord :sday) :eday (to-ord :eday) :pday (to-ord :pday)})))
+
 (defn get-prefix
   ([grid date tile type product]
    (let [hhh (subs tile 0 3)
@@ -204,10 +209,8 @@
 
 (defn normalized-burn-ratio
   "Return the Normalized Burn Ratio for a segment"
-  [model]
-  (let [sday   (-> model (:sday) (util/to-ordinal)) 
-        eday   (-> model (:eday) (util/to-ordinal)) 
-        niint  (:niint model)
+  [model sday eday]
+  (let [niint  (:niint model)
         s1int  (:s1int model)
         nicoef (-> model (:nicoef) (first))
         s1coef (-> model (:s1coef) (first))
@@ -222,9 +225,12 @@
 (defn get-class 
  "Returns the class value given a collection of probabilities"
   ([probs rank]
-   (let [sorted (reverse (sort probs)) 
-         position (.indexOf probs (nth sorted rank))]
-     (nth (:lc_list config) position)))
+   (try
+     (let [sorted (reverse (sort probs)) 
+           position (.indexOf probs (nth sorted rank))]
+       (nth (:lc_list config) position))
+     (catch IndexOutOfBoundsException e ; the probs collection is empty
+       (:none (:lc_map config)))))      ; return configured value for None
   ([probs]
    (get-class probs 0)))
 
@@ -250,8 +256,8 @@
         last_class  (-> predictions (last)  (:prob) (get-class))
         grass (:grass (:lc_map config))
         tree  (:tree  (:lc_map config))
-        first_forest_date (-> predictions (first-date-of-class tree)  (util/to-ordinal))   
-        first_grass_date  (-> predictions (first-date-of-class grass) (util/to-ordinal))    
+        first_forest_date (-> predictions (first-date-of-class tree))   
+        first_grass_date  (-> predictions (first-date-of-class grass))    
         probabilities (mean-probabilities predictions)]
 
     (cond
@@ -276,7 +282,7 @@
   (let [sday (-> segment (:sday) (util/to-ordinal)) 
         eday (-> segment (:eday) (util/to-ordinal))
         bday (-> segment (:bday) (util/to-ordinal))
-        burn_ratio (normalized-burn-ratio segment)
+        burn_ratio (normalized-burn-ratio segment sday eday)
         intersects        (<= sday query_day eday)
         precedes_sday     (< query_day sday)
         follows_eday      (> query_day eday)
@@ -284,7 +290,8 @@
         between_eday_bday (<= eday query_day bday)
         growth  (> burn_ratio 0.05)
         decline (< burn_ratio -0.05)
-        segment_probabilities (filter (fn [i] (= (-> i (:sday) (util/to-ordinal)) sday)) probabilities)
+        probability_reducer (fn [coll p] (if (= (:sday p) sday) (conj coll p) coll))
+        segment_probabilities (reduce probability_reducer [] probabilities)
         sorted_probabilities  (util/sort-by-key segment_probabilities :pday)
         classification (classify (merge segment {:probabilities sorted_probabilities}) query_day rank burn_ratio)]
     (hash-map :intersects     intersects
@@ -305,7 +312,7 @@
   ([pixel_models query_date rank conf]
    (try
      (let [sorted_segments (util/sort-by-key (:segments pixel_models) :sday)
-           probabilities   (:predictions pixel_models)
+           probabilities   (map convert_prediction_dates (:predictions pixel_models))
            characterized_segments (map #(characterize-segment % query_date probabilities rank) sorted_segments)
            first_start_day   (-> (first sorted_segments) (:sday) (util/to-ordinal))
            last_end_day      (-> (last sorted_segments)  (:eday) (util/to-ordinal))
@@ -396,8 +403,8 @@
   [pixel_models query_date rank]
   (try
     (let [sorted_segments (util/sort-by-key (:segments pixel_models) :sday)
-          probabilities   (:predictions pixel_models)
-          characterized_segments (map #(characterize-segment % query_date probabilities rank) sorted_segments)
+          probabilities   (map convert_prediction_dates (:predictions pixel_models))
+          characterized_segments (pmap #(characterize-segment % query_date probabilities rank) sorted_segments)
           first_start_day   (-> (first sorted_segments) (:sday) (util/to-ordinal))
           last_end_day      (-> (last sorted_segments)  (:eday) (util/to-ordinal))
           intersected_segment (first (filter :intersects characterized_segments))
@@ -457,6 +464,7 @@
   (let [predictions_valid (not-empty (filter product-specs/prediction-valid? (:predictions pixel_models)))
         value (if predictions_valid (confidence pixel_models query_date 1) (:lcc_nomodel (:lc_defaults config)))]
     (hash-map :pixelx (:px pixel_map) :pixely (:py pixel_map) :val value)))
+
 
 (defn pixel-map
   "Return hash-map keyed by pixelx and pixely with a hash-map value for :segments and :predictions"
