@@ -19,6 +19,7 @@
       nil)))
 
 (def lc_map (array-map
+             :none    (or (try-read (:lc-none    environ/env)) 0)
              :develop (or (try-read (:lc-develop environ/env)) 1)
              :ag      (or (try-read (:lc-ag      environ/env)) 2)
              :grass   (or (try-read (:lc-grass   environ/env)) 3)
@@ -26,8 +27,7 @@
              :water   (or (try-read (:lc-water   environ/env)) 5)
              :wetland (or (try-read (:lc-wetland environ/env)) 6)
              :snow    (or (try-read (:lc-snow    environ/env)) 7)
-             :barren  (or (try-read (:lc-barren  environ/env)) 8)
-             :none    (or (try-read (:lc-none    environ/env)) 0)))
+             :barren  (or (try-read (:lc-barren  environ/env)) 8)))
 
 (def nlcd_map (array-map
                0  (:none lc_map)
