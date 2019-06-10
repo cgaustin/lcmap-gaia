@@ -23,7 +23,7 @@
 (deftest test-nlcd
   (with-fake-http [{:url nlcd-url :method :get} {:status 200 :body (nlcd_resp)}]
     (let [response (chipmunk/nlcd nlcd-cx nlcd-cy)]
-      (is (= response nlcd-vals)))))
+      (is (= response [4 3 0])))))
 
 (deftest test-binary
   (is (= 1 (chipmunk/binary 55)))
@@ -38,9 +38,5 @@
 (deftest test-nlcd_filters
   (with-fake-http [{:url nlcd-url :method :get} {:status 200 :body (nlcd_resp)}]
     (let [response (chipmunk/nlcd_filters nlcd-cx nlcd-cy)]
-      (is (= (:values response) nlcd-vals))
-      (is (= (:mask response) nlcd-mask-vals))))
-
-
-
-)
+      (is (= (:values response) [4 3 0]))
+      (is (= (:mask response) nlcd-mask-vals)))))
