@@ -167,14 +167,14 @@
 (deftest get_class_test
   (let [first_class (products/get-class (:prob (first (:predictions tr/first_segments_predictions))))
         last_class  (products/get-class (:prob (last (:predictions tr/first_segments_predictions))))]
-    (is (= first_class 7))
-    (is (= last_class 5))))
+    (is (= first_class 6))
+    (is (= last_class 4))))
 
 (deftest first_date_of_class_test
   (let [sorted_predictions (util/sort-by-key (:predictions tr/first_segments_predictions) :date)]
-    (is (= "1995-07-01" (products/first-date-of-class sorted_predictions 7)))
-    (is (= "2012-07-01" (products/first-date-of-class sorted_predictions 5)))
-    (is (= nil (products/first-date-of-class sorted_predictions 4)))))
+    (is (= "1995-07-01" (products/first-date-of-class sorted_predictions 6)))
+    (is (= "2012-07-01" (products/first-date-of-class sorted_predictions 4)))
+    (is (= nil (products/first-date-of-class sorted_predictions 3)))))
 
 (deftest mean_probabilities_test
   (let [preds [{:prob [0 1 2 3 4 5 6 7 8]} {:prob [7 8 9 5 8 7 6 5 5]}]]
@@ -214,7 +214,7 @@
         segment_probabilities (filter (fn [i] (= (:sday i) sday)) probs)
         sorted_probabilities (util/sort-by-key segment_probabilities :pday)
         segment_model (merge first_segment {:probabilities sorted_probabilities})]
-    (is (= 7 (products/classify segment_model tr/query_ord 0 nbrdiff)))))
+    (is (= 6 (products/classify segment_model tr/query_ord 0 nbrdiff)))))
 
 (deftest characterize_segment_test
   (with-redefs [products/normalized-burn-ratio (fn [i x z] 66)
@@ -248,21 +248,21 @@
         modded_segments (merge segs_probs {:segments [first_seg last_seg]})]
 
     ; query date precedes first segment start date and fill_begin is true
-    (is (= (:snow (:lc_map config)) (products/landcover segs_probs (-> "1980-01-01" (util/to-ordinal)) 0)))
+    (is (= (:wetland (:lc_map config)) (products/landcover segs_probs (-> "1980-01-01" (util/to-ordinal)) 0)))
     
     ; query date precedes first segment start date
     (is (= (:lc_insuff (:lc_defaults config))
            (products/landcover segs_probs (-> "1980-01-01" (util/to-ordinal)) 0 (merge config {:fill_begin false}))))
 
     ; query date follows last segment end date and fill_end is true
-    (is (= (:water (:lc_map config)) (products/landcover segs_probs (-> "2018-01-01" (util/to-ordinal)) 0)))
+    (is (= (:tree (:lc_map config)) (products/landcover segs_probs (-> "2018-01-01" (util/to-ordinal)) 0)))
 
     ; query date follows last segment end date
     (is (= (:lc_insuff (:lc_defaults config))
            (products/landcover segs_probs (-> "2017-10-01" (util/to-ordinal)) 0 (merge config {:fill_end false}))))
 
     ; query date falls between a segments start and end dates
-    (is (= (:water (:lc_map config))
+    (is (= (:tree (:lc_map config))
            (products/landcover segs_probs (-> "2002-01-01" (util/to-ordinal)) 0)))
 
     ; query date falls between segments of same landcover classification and fill_samelc config is true
@@ -270,18 +270,18 @@
            (products/landcover tr/first_segments_matching_predictions (-> "2001-09-20" (util/to-ordinal)) 0)))
 
     ; query date falls between one segments break date and the following segments start date and fill_difflc config is true
-    (is (= (:water (:lc_map config)) 
+    (is (= (:tree (:lc_map config)) 
            (products/landcover modded_segments (-> "2001-10-03" (util/to-ordinal)) 0)))
 
     ; query date falls between a segments end date and break date and fill_difflc config is true
-    (is (= (:snow (:lc_map config)) 
+    (is (= (:wetland (:lc_map config)) 
            (products/landcover modded_segments (-> "2001-09-10" (util/to-ordinal)) 0)))
 
     ; as a last resort return lc_inbtw configuration value
     (is (= (:lc_inbtw config))
         (products/landcover modded_segments (-> "2001-09-20" (util/to-ordinal)) 0 (merge config {:fill_difflc false})))
 
-    (is (= {:pixelx 1 :pixely 2 :val 75}
+    (is (= {:pixelx 1 :pixely 2 :val 64}
            (products/annual-change {:px 1 :py 2} segs_probs (-> "2002-01-01" (util/to-ordinal)))))))
 
 

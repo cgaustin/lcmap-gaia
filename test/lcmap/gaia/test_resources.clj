@@ -24,8 +24,8 @@
 
 (def first_prob  {:cx -2115585, :cy 3119805, :px -2114685, :py 3118215, :sday "1982-12-27", :eday "2001-09-10", :pday "1995-07-01"})
 (def last_prob   {:cx -2115585, :cy 3119805, :px -2114685, :py 3118215, :sday "1982-12-27", :eday "2001-09-10", :pday "2000-07-01"})
-(def forest_prob {:prob [0.082641214 0.23013946 1.6417161E-8 0.7288632 3.1727698E-9 7.0137938E-4 0.35765457 6.6413847E-8 6.6413847E-8]})
-(def grass_prob  {:prob [6.6413847E-8 6.6413847E-8 0.7137938 0.082641214 0.35765457 3.1727698E-9 1.6417161E-8 0.3288632 0.23013946]})
+(def forest_prob {:prob [0.082641214 0.23013946 1.6417161E-8 3.1727698E-9 0.7288632 7.0137938E-4 0.35765457 6.6413847E-8 6.6413847E-8]})
+(def grass_prob  {:prob [6.6413847E-8 6.6413847E-8 0.35765457 0.7137938 0.082641214 3.1727698E-9 1.6417161E-8 0.3288632 0.23013946]})
 (def forest_to_grass_probs [(merge first_prob forest_prob) (merge last_prob grass_prob)])
 (def grass_to_forest_probs [(merge first_prob grass_prob) (merge last_prob forest_prob)])
 (def first_segments_matching_predictions (merge first_segments_predictions {:predictions [(merge first_prob forest_prob) 
