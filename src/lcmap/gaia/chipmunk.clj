@@ -20,9 +20,10 @@
     (let [ubid "AUX_NLCD"
           url (chips_url ubid x y)
           response @(http/get url)
-          encoded (-> (:body response) (json/decode) (first) (get "data"))
-          decoded (.decode (Base64/getDecoder) encoded)]
-      (mapv int decoded))
+          encoded ((comp #(get % "data") first json/decode) (:body response))
+          decoded (.decode (Base64/getDecoder) encoded)
+          as_ints (mapv int decoded)]
+      (mapv #(get (:nlcd_conversion config) %) as_ints))
     (catch Exception e
       (log/errorf "Exception in chipmunk/nlcd for x %s y %s stacktrace: %s" 
                   x y (stacktrace/print-stack-trace e))
