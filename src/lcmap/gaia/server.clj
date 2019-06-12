@@ -11,7 +11,8 @@
             [org.httpkit.server :as http-server]
             [lcmap.gaia.nemo :as nemo]
             [lcmap.gaia.file :as file]
-            [lcmap.gaia.products :as products]
+            [lcmap.gaia.change-products :as change-products]
+            [lcmap.gaia.cover-products :as cover-products]
             [lcmap.gaia.util :as util]
             [lcmap.gaia.config :refer [config]]
             [lcmap.gaia.raster :as raster]
@@ -51,10 +52,14 @@
   [{:keys [body] :as req}]
   true)
 
-(defn product-gen
+(defmulti product-gen
+  (fn [{:keys [body] :as req}]
+    (keyword (:products body))))
+
+(defmethod product-gen :cover
   [{:keys [body] :as req}]
   (try
-    (let [results (products/generate body)
+    (let [results (cover-products/generate body)
           failures (:failures results)]
 
       (if (true? (empty? failures))
@@ -77,6 +82,34 @@
 
          :else
          (response "problem handling this request" "contact HelpDesk"))))))
+
+(defmethod product-gen :change
+  [{:keys [body] :as req}]
+  (try
+    (let [results (change-products/generate body)
+          failures (:failures results)]
+
+      (if (true? (empty? failures))
+        {:status 200 :body (dissoc results :failures)}
+        {:status 400 :body results}))
+    (catch Exception e
+      (let [ex_data       (ex-data e)
+            ex_type       (:type ex_data)
+            ex_message    (:message ex_data)
+            message       (.getMessage e)
+            response      (fn [msg details] (hash-map :status 500 :body {:inputs body :message msg :details details}))]
+        (log/errorf "Exception in server/product-gen ! args (minus chips): %s - message: %s - data: %s - stacktrace: %s" 
+                    body message ex_data (stacktrace/print-stack-trace e))
+        (cond
+         (= "data-generation-error" ex_type)
+         (response "problem creating data" ex_message)
+
+         (= "data-request-error" ex_type)
+         (response "problem retrieving input data" ex_message)
+
+         :else
+         (response "problem handling this request" "contact HelpDesk"))))))
+
 
 (defn product-fetch
   [{:keys [body] :as req}]

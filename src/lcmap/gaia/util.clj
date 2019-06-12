@@ -166,3 +166,30 @@
     (-> input (float) (str))
     (-> input (read-string) (float) (str))))
 
+(defn pixel-groups
+  [injson]
+  (let [juxt_fn (variable-juxt ["px" "py"])]
+    (group-by juxt_fn injson)))
+
+(defn flatten-values
+  "Return a flat list of product values given a collection of hash-maps
+  for every pixel in a chip, [{:pixely 3159045, :pixelx -2114775, :val 6290},...] ...]"
+  [product_value_collection]
+  (try
+    (let [; group product coll by row
+          row_groups (coll-groups product_value_collection [:pixely]) 
+          ; sort row group values by pixelx ascending 
+          sort-pixelx-fn (fn [i] (hash-map (:pixely (first i)) (sort-by :pixelx (last i))))
+          sorted-x-vals (map sort-pixelx-fn row_groups)
+          ; sort the rows by the pixely key ascending
+          sorted-y-rows (sort-by (fn [i] (first (keys i))) > sorted-x-vals)
+          ; finally, flatten to a one dimensional list
+          flattened (flatten-vals sorted-y-rows :val)]
+      flattened)
+    (catch Exception e
+      (log/errorf "Exception in util/flatten_values - input count: %s first input: %s last input: %s message: %s  stacktrace: %s " 
+                  (count product_value_collection) (first product_value_collection) (last product_value_collection) (.getMessage e) 
+                  (stacktrace/print-stack-trace e))
+      (throw (ex-info "Exception in products/flatten_values" {:type "data-generation-error"
+                                                              :message (.getMessage e)
+                                                              :arg_count (count product_value_collection)})))))
