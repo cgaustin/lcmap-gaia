@@ -60,6 +60,11 @@
   (when (not (nil? datestring))
     (-> datestring (to-javatime) (javatime-to-ordinal))))
 
+(defn to-yyyy-mm-dd
+  "Convert ordinal value to a YYYY-MM-DD formatted string"
+  [ordinaldate]
+  (-> ordinaldate inc ordinal-to-javatime str))
+
 (defn coll-groups
   "Group collection of hash maps by shared keys values"
   [coll keys]
@@ -177,14 +182,14 @@
   [product_value_collection]
   (try
     (let [; group product coll by row
-          row_groups (coll-groups product_value_collection [:pixely]) 
+          row_groups (coll-groups product_value_collection [:py]) 
           ; sort row group values by pixelx ascending 
-          sort-pixelx-fn (fn [i] (hash-map (:pixely (first i)) (sort-by :pixelx (last i))))
+          sort-pixelx-fn (fn [i] (hash-map (:py (first i)) (sort-by :px (last i))))
           sorted-x-vals (map sort-pixelx-fn row_groups)
           ; sort the rows by the pixely key ascending
           sorted-y-rows (sort-by (fn [i] (first (keys i))) > sorted-x-vals)
           ; finally, flatten to a one dimensional list
-          flattened (flatten-vals sorted-y-rows :val)]
+          flattened (flatten-vals sorted-y-rows :values)]
       flattened)
     (catch Exception e
       (log/errorf "Exception in util/flatten_values - input count: %s first input: %s last input: %s message: %s  stacktrace: %s " 
