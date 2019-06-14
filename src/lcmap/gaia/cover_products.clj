@@ -130,9 +130,8 @@
 
 (defn classify
   "Return the classification value for a single segment given a query_day and rank"
-  [model query_date rank burn_ratio]
-  (let [predictions (:probabilities model) ; sorted in characterize-segment
-        first_class ((comp get-class #(get % "prob") first) predictions) ;(-> predictions (first) (:prob) (get-class))
+  [segment predictions query_date rank burn_ratio]
+  (let [first_class ((comp get-class #(get % "prob") first) predictions) ;(-> predictions (first) (:prob) (get-class))
         last_class  ((comp get-class #(get % "prob") last) predictions)  ;(-> predictions (last)  (:prob) (get-class))
         grass (:grass (:lc_map config))
         tree  (:tree  (:lc_map config))
@@ -175,8 +174,8 @@
         probability_reducer (fn [coll p] (if (= (ordinal_sday p) sday) (conj coll p) coll)) ; if prediction sday == segment sday, keep it
         segment_probabilities (reduce probability_reducer [] probabilities)
         sorted_probabilities  (util/sort-by-key segment_probabilities "pday")
-        primary_classification   (classify (merge segment {:probabilities sorted_probabilities}) query_day 0 burn_ratio)
-        secondary_classification (classify (merge segment {:probabilities sorted_probabilities}) query_day 1 burn_ratio)]
+        primary_classification   (classify segment sorted_probabilities query_day 0 burn_ratio)
+        secondary_classification (classify segment sorted_probabilities query_day 1 burn_ratio)]
     (hash-map :intersects      intersects
               :precedes_sday   precedes_sday
               :follows_eday    follows_eday
@@ -192,7 +191,6 @@
               :primary_class   primary_classification
               :secondary_class secondary_classification)))
 
-; {:date 730666, :segments ({:bday 736594, :intersects true, :follows_bday false, :btw_eday_bday false, :sday 724514, :decline false, :eday 736594, :follows_eday false, :primary_class 2, :precedes_sday false, :secondary_class 1, :growth true}), :pixelxy [1634775 2066595]}
 (defn landcover
   "Return the landcover value given the segments, probabilities, query_day and rank for a location"
   ([characterized_pixel rank conf]
@@ -248,7 +246,7 @@
   ([characterized_pixel rank] ; enable passing in the configuration
    (landcover characterized_pixel rank config)))
 
-(defn annual-change
+(defn change
   "Return the change in landcover from the provided year, to the previous year"
   [characterized_pixel]
   (let [query_day          (:date characterized_pixel)
@@ -318,20 +316,25 @@
 (defn characterize-inputs
   "Return a hash-map characterizing details of the segment"
   [pixelxy inputs query_day]
-  (let [segments    (:segments inputs)
-        predictions (:predictions inputs)
-        characterized (map #(characterize-segment % query_day predictions) segments)]
-    (hash-map :pixelxy pixelxy :segments characterized :date query_day)))
+  (let [segments    (filter product-specs/segment-valid? (:segments inputs))
+        predictions (filter product-specs/prediction-valid? (:predictions inputs))
+        response    #(hash-map :pixelxy pixelxy :segments % :date query_day)]
+    (if (and (seq segments) (seq predictions))
+      (response (map #(characterize-segment % query_day predictions) segments))
+      (response []))))
 
 (defn products 
   [characterized_pixel]
-  (let [date (:date characterized_pixel)
+  (let [date    (:date characterized_pixel)
         [px py] (:pixelxy characterized_pixel)
-        primary_landcover    (landcover  characterized_pixel 0)
-        secondary_landcover  (landcover  characterized_pixel 1)
-        primary_confidence   (confidence characterized_pixel 0)
-        secondary_confidence (confidence characterized_pixel 1)
-        annual_change        (annual-change characterized_pixel)]
+        none    (:none (:lc_map config))
+        nomodel (:lcc_nomodel (:lc_defaults config))
+        good_data            (not (empty? (:segments characterized_pixel)))
+        primary_landcover    (if good_data (landcover  characterized_pixel 0) none) 
+        secondary_landcover  (if good_data (landcover  characterized_pixel 1) none)
+        primary_confidence   (if good_data (confidence characterized_pixel 0) nomodel) 
+        secondary_confidence (if good_data (confidence characterized_pixel 1) nomodel)
+        annual_change        (if good_data (change     characterized_pixel)   none)]
 
     (hash-map :px px :py py :date date
               :values {:primary-landcover primary_landcover 
