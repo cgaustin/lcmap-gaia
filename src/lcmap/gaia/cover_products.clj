@@ -169,16 +169,14 @@
         follows_eday      (> query_day eday)
         follows_bday      (>= query_day bday)
         between_eday_bday (<= eday query_day bday)
-        previous_query_day (util/subtract_year query_day)
         growth  (> burn_ratio 0.05)
         decline (< burn_ratio -0.05)
         ordinal_sday #(util/to-ordinal (get % "sday"))
-        probability_reducer (fn [coll p] (if (= (ordinal_sday p) sday) (conj coll p) coll))
+        probability_reducer (fn [coll p] (if (= (ordinal_sday p) sday) (conj coll p) coll)) ; if prediction sday == segment sday, keep it
         segment_probabilities (reduce probability_reducer [] probabilities)
         sorted_probabilities  (util/sort-by-key segment_probabilities "pday")
         primary_classification   (classify (merge segment {:probabilities sorted_probabilities}) query_day 0 burn_ratio)
-        secondary_classification (classify (merge segment {:probabilities sorted_probabilities}) query_day 1 burn_ratio)
-        previous_classification  (classify (merge segment {:probabilities sorted_probabilities}) previous_query_day 0 burn_ratio)]
+        secondary_classification (classify (merge segment {:probabilities sorted_probabilities}) query_day 1 burn_ratio)]
     (hash-map :intersects      intersects
               :precedes_sday   precedes_sday
               :follows_eday    follows_eday
@@ -192,8 +190,7 @@
               :chprob          chprob
               :probabilities   sorted_probabilities
               :primary_class   primary_classification
-              :secondary_class secondary_classification
-              :previous_class  previous_classification)))
+              :secondary_class secondary_classification)))
 
 ; {:date 730666, :segments ({:bday 736594, :intersects true, :follows_bday false, :btw_eday_bday false, :sday 724514, :decline false, :eday 736594, :follows_eday false, :primary_class 2, :precedes_sday false, :secondary_class 1, :growth true}), :pixelxy [1634775 2066595]}
 (defn landcover
@@ -251,25 +248,18 @@
   ([characterized_pixel rank] ; enable passing in the configuration
    (landcover characterized_pixel rank config)))
 
-
 (defn annual-change
   "Return the change in landcover from the provided year, to the previous year"
   [characterized_pixel]
-  (let [previous_value    (:previous_class characterized_pixel)
-        latest_value      (:primary_class characterized_pixel)]
+  (let [query_day          (:date characterized_pixel)
+        previous_query_day (util/subtract_year query_day)
+        previous_pixel     (merge characterized_pixel {:date previous_query_day})
+        current_landcover  (landcover characterized_pixel 0)
+        previous_landcover (landcover previous_pixel 0)]
 
-    (cond
-     ; invalid predictions, use (:none (:lc_map))
-     ;(= false predictions_valid)
-     ;(merge response_template {:val (:none (:lc_map config))})
-
-     ; last class matches latest class
-     (= previous_value latest_value)
-     latest_value
-
-     ; classes don't match
-     :else
-     (util/concat_ints previous_value latest_value))))
+    (if (= current_landcover previous_landcover)
+      current_landcover
+      (util/concat_ints previous_landcover current_landcover))))
 
 (defn confidence
   "Return the landcover confidence value given the segments, probabilities, query_day and rank for a location"
@@ -369,7 +359,7 @@
           get_sorted           #(util/sort-by-key (get grouped_segments %) "sday")
           pixel_inputs         (into {} (map #(hash-map % {:segments (get_sorted %) :predictions (get grouped_predictions %)} ) (keys grouped_segments))) 
           ordinal_dates        (map util/to-ordinal dates)
-          pixel_dates          (combo/cartesian-product ordinal_dates (keys pixel_inputs))
+          pixel_dates          (combo/cartesian-product ordinal_dates (keys pixel_inputs)) ; ([ordinal-date [px py]], ...)
           characterized_pixels (map #(characterize-inputs (last %) (get pixel_inputs (last %)) (first %)) pixel_dates)
           pixel_products       (map products characterized_pixels)
           grouped_products     (group-by :date pixel_products)]
