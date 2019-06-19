@@ -33,16 +33,15 @@
 
 
 (deftest map-path-test
-  (with-redefs [config {:region "CU" :ccd_ver "C01"}
+  (with-redefs [config {:region "CU" :ccd_ver "V01"}
                 storage/get_url (fn [a b] (str a "/" b))]
     (let [tileid "123456"
-          product "time-since-change"
+          product "primary-landcover"
           date "2007-07-01"
           result (cover-products/map-path tileid product date)]
       (is (= (keys result) '(:name :prefix :url)))
-      (is (= (:prefix result) "raster/2007/CU/123/456/time-since-change"))
-      (is (string/includes? (:name result) "LCMAP-CU-123456-20070701-"))
-      (is (string/includes? (:name result) "-C01-SCLAST.tif")))))
+      (is (= (:prefix result) "raster/2007/CU/123/456/primary-landcover"))
+      (is (= (:name result) "LCMAP-CU-123456-20070701-V01-LCPRI.tif")))))
 
 (deftest ppath-test
   (with-redefs [config {:region "CU"}]
@@ -244,87 +243,66 @@
     ))
 
 
-(deftest landcover_confidence_test ; first segment -> sday 1982-12-27 bday 2001-10-04 eday 2001-09-10
-                                   ; last segment -> sday 2001-10-04  bday 2017-09-14 eday 2017-09-14
-  (let [segs_probs tr/first_segments_predictions
-        segs_probs_match_preds tr/first_segments_matching_predictions
-        modded_segments (merge segs_probs {:segments [(first (:segments segs_probs))
-                                                      (merge (last (:segments segs_probs)) {:chprob 1.0})]})
-        ordinal_1995 (-> "1995-07-01" (util/to-ordinal))
-        ordinal_2001 (-> "2001-09-20" (util/to-ordinal))
-        ordinal_2017 (-> "2017-10-01" (util/to-ordinal))]
+(deftest landcover_confidence_test
+  (let [pixel_input tr/pixel_input
+        ordinal_date (-> "2001-07-01" util/to-ordinal)
+        pixel_dates (combo/cartesian-product [ordinal_date] (keys pixel_input))
+        characterized_pixels (map #(cover-products/characterize-inputs (last %) (get pixel_input (last %)) (first %)) pixel_dates)
+        first_pixel (first characterized_pixels) ; date 730666 (2001-07-01)
+        first_segment (first (:segments first_pixel)) ; bday 736594, sday 724514, eday 736594
+        first_predictions (:probabilities first_segment)
+        modify_segment (fn [i] (merge first_pixel {:segments [(merge first_segment i)]}))
+        modify_predictions (fn [i] {:probabilities (map #(merge % i) first_predictions)}) 
+        ; update cx and cy vals in probabilities, and bday val in segments
+        ; (-> {"cx" 666 "cy" 777} modify_predictions (merge {:bday 666}) modify_segment)
+       ] 
 
     ; query date precedes first segment start date and fill_begin is true
-    (is (= (:lcc_back (:lc_defaults config)) 
-           (cover-products/confidence segs_probs 0)))
+    (let [input (merge first_pixel {:date 724114})]
+      (is (= (:lcc_back (:lc_defaults config))
+             (cover-products/confidence input 0))))
 
     ; query date follows last segment end date and change prob is 1
-    (is (= (:lcc_afterbr (:lc_defaults config))
-           (cover-products/confidence modded_segments 0)))
+    (let [mod_seg (modify_segment {:chprob 1.0})
+          input (merge mod_seg {:date 736894})]
+      (is (= (:lcc_afterbr (:lc_defaults config))
+             (cover-products/confidence input 0))))
 
-     ; query date follows last segment end date and change prob is 0
-    (is (= (:lcc_forwards (:lc_defaults config))
-           (cover-products/confidence segs_probs 0)))
+    ; query date follows last segment end date and change prob is 0
+    (let [input (merge first_pixel {:date 736894})] ; first_pixel chprob is 0.0
+      (is (= (:lcc_forwards (:lc_defaults config))
+             (cover-products/confidence input 0))))
 
-    ; query date falls between a segments start date and end date and growth is true
-    (is (= (:lcc_growth (:lc_defaults config))
-           (cover-products/confidence segs_probs 0)))
+    ;; ; query date falls between a segments start date and end date and growth is true
+    (let [input (merge first_pixel {:date 727514})] ; first_pixel growth is true
+      (is (= (:lcc_growth (:lc_defaults config))
+             (cover-products/confidence input 0))))
 
     ; query date falls between a segments start date and end date and decline is true
-    (with-redefs [cover-products/normalized-burn-ratio (fn [i x s] -0.66)]
+    (let [mod_pixel (modify_segment {:growth false :decline true})
+          input (merge mod_pixel {:date 727514})]
       (is (= (:lcc_decline (:lc_defaults config))
-             (cover-products/confidence segs_probs 0))))
+             (cover-products/confidence input 0))))
 
     ; query date falls between a segments start and end date, neither growth nor decline
-    (with-redefs [cover-products/normalized-burn-ratio (fn [i x s] 0.01)]
-      (is (= 8 (cover-products/confidence segs_probs 0))))
+    (let [mod_pixel (modify_segment {:growth false})
+          input (merge mod_pixel {:date 727514})]
+      (is (= 1 (cover-products/confidence input 0))))
 
     ; query date falls between segments of same landcover classification and fill_samelc config is true
-    (is (= (:lcc_samelc (:lc_defaults config))
-           (cover-products/confidence segs_probs_match_preds 0)))
+    (let [segment1 (merge first_segment {:eday 725000 :intersects false :follows_eday true})
+          segment2 (merge first_segment {:sday 727000 :intersects false :precedes_sday true})
+          input (merge first_pixel {:date 726000 :segments [segment1 segment2]})]
+      (is (= (:lcc_samelc (:lc_defaults config))
+             (cover-products/confidence input 0))))
 
-    ; query date falls between segments with different landcover classifications
-    (is (= (:lcc_difflc (:lc_defaults config))
-           (cover-products/confidence segs_probs 0)))))
-
-;; (deftest pixel-map_test
-;;   (let [inmap {:pixelxy [1 2] :segments {[1 2] [:a :b :c]} :predictions {[1 2] [:d :e :f]}}]
-;;     (is (= (cover-products/pixel-map inmap) {{:px 1 :py 2} {:segments [:a :b :c] :predictions [:d :e :f]}}))))
-
-;; (deftest pixel-groups_test
-;;   (let [inmaps [{:px 1 :py 2 :foo "bar"} {:px 1 :py 2 :foo "too"} 
-;;                 {:px 3 :py 4 :foo "shizzle"} {:px 3 :py 4 :foo "baz"}]
-;;         value (cover-products/pixel-groups inmaps)] 
-;;     (is (= (count value) 2))
-;;     (is (= (keys value) '([1 2] [3 4])))))
-
-;; (deftest flatten-values_data_test
-;;   ; lower left pixel value should be the first item in returned collection
-;;   (let [input [{:pixely 3159045, :pixelx -2114775, :val 2} ; lower left
-;;                {:pixely 3159045, :pixelx -2114745, :val 4} ; lower right
-;;                {:pixely 3159075, :pixelx -2114775, :val 6} ; upper left
-;;                {:pixely 3159075, :pixelx -2114745, :val 8} ; upper right
-;;                ]]
-;;     (is (= (cover-products/flatten-values input)
-;;            [6 8 2 4]))))
-
-;; (deftest values_test
-;;   (let [segs  tr/segments_json    ;(:segments tr/first_segments_predictions)  
-;;         preds tr/predictions_json ;(:predictions tr/first_segments_predictions)
-;;         first_seg (:segments tr/first_segments_predictions)
-;;         first_pred (:predictions tr/first_segments_predictions)
-;;         product "time-since-change"
-;;         query_day "2006-07-01"]
-;;     ; requesting a change product with segments and predictions is valid
-;;     (is (= 2915 (nth (cover-products/values segs preds product query_day) 5)))
-;;     ; cover-products/data should throw an exception when its output is too small
-;;     (is (thrown-with-msg? Exception #"Validation Error" (cover-products/values first_seg first_pred product query_day)))
-;;     ; requesting a landcover product with no predictions should throw an exception
-;;     ;(is (thrown-with-msg? Exception #"Exception in cover-products/flatten_values" (cover-products/values segs [] "primary-landcover" query_day)))
-;;     (is (= '(0) (distinct (cover-products/values segs [] "primary-landcover" query_day))))
-;;     (is (= 10000 (count (cover-products/values segs [] "primary-landcover" query_day))))
-;;     ; requesting a change product with no predictions is valid
-;;     (is (= 2915 (nth (cover-products/values segs [] product query_day) 5)))))
+    ;; ; query date falls between segments with different landcover classifications
+    (let [segment1 (merge first_segment {:eday 725000 :intersects false :follows_eday true})
+          segment2 (merge first_segment {:sday 727000 :intersects false :precedes_sday true :primary_class 3})
+          input (merge first_pixel {:date 726000 :segments [segment1 segment2]})]
+      (is (= (:lcc_difflc (:lc_defaults config))
+             (cover-products/confidence input 0))))
+))
 
 (deftest product_details_test
   (is (= (keys cover-products/product_details) 
