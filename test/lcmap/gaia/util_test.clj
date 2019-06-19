@@ -93,6 +93,22 @@
   (let [coll [4 2 6 88 7]]
     (is (= (float 21.4) (util/mean coll)))))
 
+(deftest pixel-groups_test
+  (let [inmaps [{"px" 1 "py" 2 "foo" "bar"} {"px" 1 "py" 2 "foo" "too"} 
+                {"px" 3 "py" 4 "foo" "shizzle"} {"px" 3 "py" 4 "foo" "baz"}]
+        value (util/pixel-groups inmaps)] 
+    (is (= (count value) 2))
+    (is (= (keys value) '([1 2] [3 4])))))
+
+(deftest flatten-values_data_test
+  ; lower left pixel value should be the first item in returned collection
+  (let [input [{:py 3159045, :px -2114775, :values 2} ; lower left
+               {:py 3159045, :px -2114745, :values 4} ; lower right
+               {:py 3159075, :px -2114775, :values 6} ; upper left
+               {:py 3159075, :px -2114745, :values 8} ; upper right
+               ]]
+    (is (= (util/flatten-values input)
+           [6 8 2 4]))))
 
 
 
