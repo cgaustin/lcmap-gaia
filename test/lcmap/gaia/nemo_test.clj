@@ -11,7 +11,7 @@
 
 (deftest test-results_url
   (with-redefs [config/config faux_config]
-    (let [url (nemo/results_url 999 666 (:segments_path faux_config))]
+    (let [url (nemo/results-url 999 666 (:segments_path faux_config))]
       (is (= url faux_nemo_segments_url)))))
 
 (deftest test-results-good

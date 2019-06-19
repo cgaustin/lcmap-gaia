@@ -23,11 +23,6 @@
             "secondary-landcover-confidence" {:abbr "LCSCONF" :type gdal/int8} 
             "annual-change"                  {:abbr "LCACHG"  :type gdal/int8}))
 
-(defn convert_prediction_dates 
-  [inpred]
-  (let [to-ord #(util/to-ordinal (% inpred))]
-    (merge inpred {:sday (to-ord :sday) :eday (to-ord :eday) :pday (to-ord :pday)})))
-
 (defn get-prefix
   ([grid date tile type product]
    (let [hhh (subs tile 0 3)
@@ -117,8 +112,8 @@
 (defn first-date-of-class
   "Returns the 'date' value from a collection of predictions for the first occurence of a given classification"
   [sorted_predictions class_val]
-  (let [matching_predictions (filter (fn [i] (= class_val (get-class (:prob i)))) sorted_predictions)]
-      (:pday (first matching_predictions))))
+  (let [matching_predictions (filter (fn [i] (= class_val (get-class (get i "prob")))) sorted_predictions)]
+      (get (first matching_predictions) "pday")))
 
 (defn mean-probabilities
   "Returns a 1-d collection of mean probabilities given a collection of probabilities "
@@ -130,13 +125,13 @@
 
 (defn classify
   "Return the classification value for a single segment given a query_day and rank"
-  [segment predictions query_date rank burn_ratio]
-  (let [first_class ((comp get-class #(get % "prob") first) predictions) ;(-> predictions (first) (:prob) (get-class))
-        last_class  ((comp get-class #(get % "prob") last) predictions)  ;(-> predictions (last)  (:prob) (get-class))
+  [predictions query_date rank burn_ratio]
+  (let [first_class (get-class (get (first predictions) "prob")) ; ((comp get-class #(get % "prob") first) predictions) ;(-> predictions (first) (:prob) (get-class))
+        last_class  (get-class (get (last predictions) "prob")) ;((comp get-class #(get % "prob") last) predictions) ;(-> predictions (last)  (:prob) (get-class))
         grass (:grass (:lc_map config))
         tree  (:tree  (:lc_map config))
-        first_forest_date (first-date-of-class predictions tree)  ; (-> predictions (first-date-of-class tree))   
-        first_grass_date  (first-date-of-class predictions grass) ; (-> predictions (first-date-of-class grass))    
+        first_forest_date (util/to-ordinal (first-date-of-class predictions tree))  ; (-> predictions (first-date-of-class tree))   
+        first_grass_date  (util/to-ordinal (first-date-of-class predictions grass))  ; (-> predictions (first-date-of-class grass))    
         probabilities (mean-probabilities predictions)]
 
     (cond
@@ -174,8 +169,8 @@
         probability_reducer (fn [coll p] (if (= (ordinal_sday p) sday) (conj coll p) coll)) ; if prediction sday == segment sday, keep it
         segment_probabilities (reduce probability_reducer [] probabilities)
         sorted_probabilities  (util/sort-by-key segment_probabilities "pday")
-        primary_classification   (classify segment sorted_probabilities query_day 0 burn_ratio)
-        secondary_classification (classify segment sorted_probabilities query_day 1 burn_ratio)]
+        primary_classification   (classify sorted_probabilities query_day 0 burn_ratio)
+        secondary_classification (classify sorted_probabilities query_day 1 burn_ratio)]
     (hash-map :intersects      intersects
               :precedes_sday   precedes_sday
               :follows_eday    follows_eday
@@ -232,7 +227,7 @@
 
          ; query date falls between one segments break date and the following segments start date and fill_difflc config is true
          (= true (:fill_difflc conf) (not (map? between_bday_sday)))
-         (class_key (last between_bday_sday )) ; return the value from the last model from the pair of models the query date fell between
+         (class_key (last between_bday_sday)) ; return the value from the last model from the pair of models the query date fell between
 
          ; query date falls between a segments end date and break date and fill_difflc config is true
          (= true (:fill_difflc conf) (not (nil? eday_bday_model)))
@@ -316,11 +311,11 @@
 (defn characterize-inputs
   "Return a hash-map characterizing details of the segment"
   [pixelxy inputs query_day]
-  (let [segments    (filter product-specs/segment-valid? (:segments inputs))
-        predictions (filter product-specs/prediction-valid? (:predictions inputs))
+  (let [segments_valid (product-specs/segments-valid? (keywordize-keys (:segments inputs)))
+        predictions_valid (product-specs/predictions-valid? (keywordize-keys (:predictions inputs)) )
         response    #(hash-map :pixelxy pixelxy :segments % :date query_day)]
-    (if (and (seq segments) (seq predictions))
-      (response (map #(characterize-segment % query_day predictions) segments))
+    (if (and segments_valid predictions_valid)
+      (response (map #(characterize-segment % query_day (:predictions inputs)) (:segments inputs)))
       (response []))))
 
 (defn products 
@@ -355,12 +350,11 @@
 (defn generate
   [{dates :dates cx :cx cy :cy tile :tile :as all}]
   (try
-    (let [segments             (nemo/segments cx cy)
+    (let [segments             (nemo/segments-sorted cx cy "sday")
           predictions          (nemo/predictions cx cy)
           grouped_segments     (util/pixel-groups segments)
           grouped_predictions  (util/pixel-groups predictions)
-          get_sorted           #(util/sort-by-key (get grouped_segments %) "sday")
-          pixel_inputs         (into {} (map #(hash-map % {:segments (get_sorted %) :predictions (get grouped_predictions %)} ) (keys grouped_segments))) 
+          pixel_inputs         (into {} (map #(hash-map % {:segments (get grouped_segments %) :predictions (get grouped_predictions %)} ) (keys grouped_segments))) 
           ordinal_dates        (map util/to-ordinal dates)
           pixel_dates          (combo/cartesian-product ordinal_dates (keys pixel_inputs)) ; ([ordinal-date [px py]], ...)
           characterized_pixels (map #(characterize-inputs (last %) (get pixel_inputs (last %)) (first %)) pixel_dates)

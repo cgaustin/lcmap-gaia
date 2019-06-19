@@ -2,13 +2,14 @@
   (:require [org.httpkit.client    :as http]
             [cheshire.core         :as json]
             [clojure.tools.logging :as log]
-            [lcmap.gaia.config     :refer [config]]))
+            [lcmap.gaia.config     :refer [config]]
+            [lcmap.gaia.util       :as util]))
 
-(defn results_url
+(defn results-url
   ([x y host path]
    (str host path "?cx=" x "&cy=" y))
   ([x y path]
-   (results_url x y (:nemo_host config) path)))
+   (results-url x y (:nemo_host config) path)))
 
 (defn parse_body
   [http_response]
@@ -16,7 +17,7 @@
 
 (defn segments
   [x y]
-  (let [url (results_url x y (:segments_path config))
+  (let [url (results-url x y (:segments_path config))
         options {:timeout (:nemo_timeout config)}
         response @(http/get url options)]
     (if (= 200 (:status response))
@@ -29,7 +30,7 @@
 
 (defn predictions
   [x y]
-  (let [url (results_url x y (:predictions_path config))
+  (let [url (results-url x y (:predictions_path config))
         options {:timeout (:nemo_timeout config)}
         response @(http/get url options)]
     (if (= 200 (:status response))
@@ -39,4 +40,8 @@
                                                                          :message "non-200 response from nemo for predictions data"
                                                                          :status (:status response) 
                                                                          :url url}))))))
+
+(defn segments-sorted
+  [x y key]
+  (util/sort-by-key (segments x y) key))
 
