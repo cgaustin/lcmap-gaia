@@ -192,7 +192,7 @@
           (log/infof "retrying chip: %s" data))))))
 
 (defn generate
-  [{dates :dates cx :cx cy :cy products :products tile :tile :as all}]
+  [{dates :dates cx :cx cy :cy tile :tile :as all}]
   (try
     (let [segments         (nemo/segments-sorted cx cy "sday")
           grouped_segments (util/pixel-groups segments)
@@ -208,9 +208,9 @@
           (log/infof "storing : %s" (:name path))
           (again/with-retries (:retry_strategy config)
             (storage/put_json destination flattened_values))))
-      {:products "change" :cx cx :cy cy :dates dates})
+      {:products "change" :cx cx :cy cy :dates dates :pixels (count pixel_products)})
     (catch Exception e
-      (log/errorf "Exception in products/generation - args: %s  message: %s  data: %s  stacktrace: %s"
+      (log/errorf "Exception in products/generate - args: %s  message: %s  data: %s  stacktrace: %s"
                   all (.getMessage e) (ex-data e) (stacktrace/print-stack-trace e))
       (throw (ex-info "Exception in products/generate" {:type "data-generation-error"
                                                         :message (.getMessage e)

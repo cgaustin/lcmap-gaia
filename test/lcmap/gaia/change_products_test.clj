@@ -9,17 +9,12 @@
             [lcmap.gaia.nemo     :as nemo]
             [lcmap.gaia.test-resources :as tr]))
 
-
-(def response_set (set [:px :py :values]))
-
+(def query_date (util/to-ordinal "1996-07-01"))
 (def test_inputs tr/pixel_segments)
-;; lcmap.gaia.main=> (doseq [s test_inputs] (prn (format "sday: %s  eday: %s" (get s "sday") (get s "eday"))))
+;; lcmap.gaia.main=> (doseq [s tr/pixel_segments] (prn (format "sday: %s  eday: %s" (get s "sday") (get s "eday"))))
 ;; "sday: 1984-10-14  eday: 1994-06-04"
 ;; "sday: 1994-08-07  eday: 1997-12-21"
 ;; "sday: 1998-01-22  eday: 2017-09-23"
-
-(def query_date (util/to-ordinal "1996-07-01"))
-
 
 (deftest get-prefix-test-raster
   (let [grid "cu"
@@ -56,14 +51,6 @@
           date "2007-07-01"
           result (change-products/ppath product x y tile date)]
       (is (= result {:name "TSC-111111.0-222222.0-2007-07-01.json", :prefix "json/2007/CU/345/678/TSC/111111.0/222222.0"})))))
-
-;; (deftest generate-test
-;;   (with-redefs [nemo/segments (fn [cx cy] [1 2 3])
-;;                 nemo/predictions (fn [cx cy] [4 5 6])
-;;                 change-products/chip (fn [p cx cy tile day segs preds] {:path {} :status "fail" :message "bad message" :date day})]
-;;     (let [input {:dates ["2006-07-01"] :cx 111111 :cy 222222 :products ["time-since-change"] :tile "012345"}
-;;           result (change-products/generate input)]
-;;       (is (= result {:failures '({"2006-07-01" "bad message"}), :products ["time-since-change"], :cx 111111, :cy 222222, :dates ["2006-07-01"]})))))
 
 (deftest time-of-change-single-model-test
   (let [input (merge (second test_inputs) {"chprob" 1.0 })
@@ -126,3 +113,9 @@
         result (change-products/curve-fit [111111 222222] test_inputs date)]
    (is (= result 8))))
 
+(deftest generate-test
+  (with-redefs [nemo/segments-sorted (fn [a b c] (util/sort-by-key tr/segments_json "sday"))
+                storage/put_json (fn [a b] true)]
+    (let [params {:dates ["2007-07-01" "2008-07-01"] :cx 111111 :cy 222222 :tile "123456"}
+          result (change-products/generate params)]
+      (is (= result {:products "change" :cx 111111 :cy 222222 :dates ["2007-07-01" "2008-07-01"] :pixels 20000})))))
