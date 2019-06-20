@@ -17,11 +17,11 @@
             [lcmap.gaia.util       :as util]))
 
 (def product_details
-  (hash-map "time-of-change"                 {:abbr "SCTIME"  :type gdal/int16}                
-            "magnitude-of-change"            {:abbr "SCMAG"   :type gdal/float32}            
-            "time-since-change"              {:abbr "SCLAST"  :type gdal/int16}              
-            "curve-fit"                      {:abbr "SCMQA"   :type gdal/int8}                     
-            "length-of-segment"              {:abbr "SCSTAB"  :type gdal/int16}))
+  (hash-map "time-of-change"      {:abbr "SCTIME" :type gdal/int16}                
+            "magnitude-of-change" {:abbr "SCMAG"  :type gdal/float32}            
+            "time-since-change"   {:abbr "SCLAST" :type gdal/int16}              
+            "curve-fit"           {:abbr "SCMQA"  :type gdal/int8}                     
+            "length-of-segment"   {:abbr "SCSTAB" :type gdal/int16}))
 
 (defn get-prefix
   ([grid date tile type product]
@@ -74,149 +74,114 @@
 
 (defn time-of-change
   "Return numeric day of year in which a break occurs"
-  ([model query-day]
+  ([model date]
    (try
-     (let [change-prob (:chprob model)
-           break-day   (-> model (:bday) (util/to-javatime)) 
-           query-year  (-> query-day (util/ordinal-to-javatime) (util/javatime-year))
+     (let [change-prob (get model "chprob")
+           break-day   (util/to-javatime (get model "bday")) 
+           query-year  (-> date (util/ordinal-to-javatime) (util/javatime-year))
            break-year  (-> break-day (util/javatime-year))]
        (if (and (= query-year break-year) (= 1.0 change-prob))
          (util/javatime-day-of-year break-day)
          0))
      (catch Exception e
        (product-exception-handler e "time-of-change"))))
-  ([pixel_map pixel_models query-day]
-   (let [segments (filter product-specs/segment-valid? (:segments pixel_models))
-         values   (map #(time-of-change % query-day) segments)
-         response #(hash-map :pixelx (:px pixel_map) :pixely (:py pixel_map) :val %)]
-     (if (empty? segments)
-       (-> 0 (response))
-       (-> (last (sort values)) (response))))))
+  ([pxpy segments date]
+   (let [valid (product-specs/segments-valid? (keywordize-keys segments))
+         values (map #(time-of-change % date) segments)]
+     (if valid
+       (last (sort values))
+       0))))
 
 (defn time-since-change
   "Return cumulative distance to previous break"
-  ([model query-day]
+  ([model date]
    (try
-     (let [change-prob (= 1.0 (:chprob model)) 
-           break-day   (-> model (:bday) (util/to-ordinal))
-           day-diff    (- query-day break-day)]
+     (let [change-prob (= 1.0 (get model "chprob")) 
+           break-day   (util/to-ordinal (get model "bday"))
+           day-diff    (- date break-day)]
        (if (and change-prob (>= day-diff 0)) 
                          day-diff 
                          nil))
      (catch Exception e
        (product-exception-handler e "time-since-change"))))
-  ([pixel_map pixel_models query-day]
-   (let [segments  (filter product-specs/segment-valid? (:segments pixel_models))
-         values    (map #(time-since-change % query-day) segments)
-         valid     (filter number? values)
-         response #(hash-map :pixelx (:px pixel_map) :pixely (:py pixel_map) :val %)]
-     (if (or (empty? segments) (empty? valid))
-       (-> 0 (response))
-       (-> (first (sort valid)) (response))))))
-
+  ([pxpy segments date]
+   (let [valid (product-specs/segments-valid? (keywordize-keys segments))
+         values (map #(time-since-change % date) segments)
+         not_nil (filter number? values)]
+     (if (or (empty? not_nil) (not valid))
+       0
+       (first (sort not_nil))))))
 
 (defn magnitude-of-change
   "Return severity of spectral shift"
-  ([model query-day]
+  ([model date]
    (try
-     (let [change-prob (= 1.0 (:chprob model)) 
-           query-year  (-> query-day (util/ordinal-to-javatime) (util/javatime-year))
-           break-year  (-> (:bday model) (util/to-javatime) (util/javatime-year))
-           magnitudes  [(:grmag model) (:remag model) (:nimag model) (:s1mag model) (:s2mag model)]
+     (let [change-prob (= 1.0 (get model "chprob")) 
+           query-year  (-> date (util/ordinal-to-javatime) (util/javatime-year))
+           break-year  (-> (get model "bday") (util/to-javatime) (util/javatime-year))
+           magnitudes  [(get model "grmag") (get model "remag") (get model "nimag") (get model "s1mag") (get model "s2mag")]
            euc-norm    (math/sqrt (reduce + (map #(math/expt % 2) magnitudes)))]
        (if (and (= query-year break-year) change-prob)
          euc-norm
          0))
      (catch Exception e
        (product-exception-handler e "magnitude-of-change"))))
-  ([pixel_map pixel_models query-day]
-   (let [segments (filter product-specs/segment-valid? (:segments pixel_models))
-         values   (map #(magnitude-of-change % query-day) segments)
-         response  #(hash-map :pixelx (:px pixel_map) :pixely (:py pixel_map) :val %)]
-     (if (empty? segments)
-       (-> 0 (response))
-       (-> (last (sort values)) (response))))))
+  ([pxpy segments date]
+   (let [valid (product-specs/segments-valid? (keywordize-keys segments))
+         values (map #(magnitude-of-change % date) segments)]
+     (if valid
+       (last (sort values))
+       0))))
 
 (defn length-of-segment
   "Return length of change segment in days"
-  ([model query-day]
+  ([model date]
    (try
-     (let [fill (- query-day (util/to-ordinal (:stability_begin config)))
-           start-day (-> model (:sday) (util/to-ordinal))
-           end-day   (-> model (:eday) (util/to-ordinal))
-           diff      (if (> query-day end-day) (- query-day end-day) (- query-day start-day))]
+     (let [fill (- date (util/to-ordinal (:stability_begin config)))
+           start-day (util/to-ordinal (get model "sday"))
+           end-day   (util/to-ordinal (get model "eday"))
+           diff      (if (> date end-day) (- date end-day) (- date start-day))]
        (if (and (<= 0 diff) (< diff fill)) 
          diff 
          fill))
      (catch Exception e
        (product-exception-handler e "length-of-segment"))))
-  ([pixel_map pixel_models query-day]
-   (let [fill     (- query-day (util/to-ordinal (:stability_begin config)))
-         segments (filter product-specs/segment-valid? (:segments pixel_models))
-         values   (map #(length-of-segment % query-day) segments)
-         response #(hash-map :pixelx (:px pixel_map) :pixely (:py pixel_map) :val %)]
-     (if (empty? segments)
-       (-> fill (response))
-       (-> (first (sort values)) (response))))))
+  ([pxpy segments date]
+   (let [fill   (- date (util/to-ordinal (:stability_begin config)))
+         valid (product-specs/segments-valid? (keywordize-keys segments))
+         values (map #(length-of-segment % date) segments)]
+     (if valid
+       (first (sort values))
+       fill))))
 
 (defn curve-fit
   "Return Curve QA for point in time"
-  ([model query-day]
+  ([model date]
    (try
-     (let [curve-qa  (:curqa model)
-           start-day (-> model (:sday) (util/to-ordinal))
-           end-day   (-> model (:eday) (util/to-ordinal))]
-       (if (<= start-day query-day end-day)
+     (let [curve-qa  (get model "curqa")
+           start-day (util/to-ordinal (get model "sday"))
+           end-day   (util/to-ordinal (get model "eday")) ]
+       (if (<= start-day date end-day)
          curve-qa
          0))
      (catch Exception e
        (product-exception-handler e "curve-fit"))))
-  ([pixel_map pixel_models query-day]
-   (let [segments (filter product-specs/segment-valid? (:segments pixel_models))
-         values   (map #(curve-fit % query-day) segments)
-         response #(hash-map :pixelx (:px pixel_map) :pixely (:py pixel_map) :val %)]
-     (if (empty? segments)
-       (-> 0 (response))
-       (-> (last (sort values)) (response))))))
+  ([pxpy segments date]
+   (let [valid (product-specs/segments-valid? (keywordize-keys segments))
+         values (map #(curve-fit % date) segments)]
+     (if valid
+       (last (sort values))
+       0))))
 
-
-(defn pixel-map
-  "Return hash-map keyed by pixelx and pixely with a hash-map value for :segments and :predictions"
-  [inputs]
-  (try
-    (let [pixelx      (first (:pixelxy inputs))
-          pixely      (last  (:pixelxy inputs))
-          segments    (get (:segments inputs)    (:pixelxy inputs))]
-      (hash-map {:px pixelx :py pixely} (hash-map :segments segments)))
-    (catch Exception e
-      (log/errorf "Exception in products/pixel_map - pixelxy: %s message: %s  stacktrace: %s " 
-                  (:pixelxy inputs) (.getMessage e) (stacktrace/print-stack-trace e))
-      (throw (ex-info "Exception in product/pixel_map" {:type "data-generation-error"
-                                                        :message (.getMessage e)
-                                                        :arguments (keys inputs)
-                                                        :pixelxy (:pixelxy inputs)})))))
-
-(defn values
-  "Returns a 1-d collection of product values"
-  [segments_json product_type queryday]
-  (let [segments    (-> segments_json (keywordize-keys) (util/pixel-groups))
-        product_fn  (->> product_type (product-specs/product_type_check) (str "lcmap.gaia.change-products/") (symbol) (resolve))
-        query_ord   (-> queryday (product-specs/date_fmt_check) (util/to-ordinal))
-        per_pixel_inputs (map #(pixel-map {:pixelxy % :segments segments}) (keys segments))
-        per_pixel_values (map #(product_fn (first (keys %)) (first (vals %)) query_ord) per_pixel_inputs)]
-    (-> per_pixel_values (util/flatten-values) (product-specs/output_check))))
-
-(defn chip
-  [product cx cy tile query_day segments]
-  (try
-    (let [values (values segments product query_day) 
-          path (ppath product cx cy tile query_day)
-          data {"x" cx "y" cy "values" values}]
-      {:status "success" :path path :data data :date query_day})
-    (catch Exception e 
-      (log/errorf "Exception in products/chip - cx: %s  cy: %s  product: %s date: %s exception-message: %s exception-data: %s" 
-                  cx cy product query_day (.getMessage e) (ex-data e))
-           {:status "fail" :date query_day :message (str (.getMessage e) " - " (ex-data e))})))
+(defn products
+  [pxpy segments date]
+  (let [[px py] pxpy]
+    (hash-map :px px :py py :date date
+              :values {:curve-fit (curve-fit pxpy segments date)
+                       :length-of-segment (length-of-segment pxpy segments date)
+                       :magnitude-of-change (magnitude-of-change pxpy segments date)
+                       :time-since-change (time-since-change pxpy segments date)
+                       :time-of-change (time-of-change pxpy segments date)})))
 
 (defn retry-handler [i cause]
   (let [exception (::again/exception i)
@@ -230,21 +195,21 @@
 (defn generate
   [{dates :dates cx :cx cy :cy products :products tile :tile :as all}]
   (try
-    (let [segments    (nemo/segments cx cy)
-          products_dates (combo/cartesian-product products dates)
-          retry_opts  {::again/callback #(retry-handler % :validation-failure) ::again/strategy (:retry_strategy config)}
-          chip_again  #(again/with-retries retry_opts (chip (first %) cx cy tile (last %) segments))
-          results     (pmap chip_again products_dates)
-          fail_filter #(filter (fn [i] (= "fail" (:status i))) %) 
-          failures    (->> results fail_filter (map (fn [i] {(:date i) (:message i)})))]
+    (let [segments         (nemo/segments-sorted cx cy "sday")
+          grouped_segments (util/pixel-groups segments)
+          ordinal_dates    (map util/to-ordinal dates)
+          pixel_dates      (combo/cartesian-product ordinal_dates (keys grouped_segments))
+          pixel_products   (map #(products (last %) (get grouped_segments (last %)) (first %)) pixel_dates)
+          grouped_products (group-by :date pixel_products)]
 
-      (doseq [result results]
-        (when (= "success" (:status result)) 
-          (log/infof "storing : %s" (get-in result [:path :name]))
+      (doseq [[date values] grouped_products]
+        (let [path (ppath "change" cx cy tile (util/to-yyyy-mm-dd date))
+              flattened_values (util/flatten-values values)
+              destination (string/join "/" [(:prefix path) (:name path)])]
+          (log/infof "storing : %s" (:name path))
           (again/with-retries (:retry_strategy config)
-            (storage/put_json (:path result) (:data result)))))
-
-      {:failures failures :products products :cx cx :cy cy :dates dates})
+            (storage/put_json destination flattened_values))))
+      {:products "change" :cx cx :cy cy :dates dates})
     (catch Exception e
       (log/errorf "Exception in products/generation - args: %s  message: %s  data: %s  stacktrace: %s"
                   all (.getMessage e) (ex-data e) (stacktrace/print-stack-trace e))

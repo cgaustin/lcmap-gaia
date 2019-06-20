@@ -13,6 +13,7 @@
 
 (def first_pixel_input (json/decode (slurp "resources/first_pixel_input.json")))
 (def pixel_input (hash-map (first first_pixel_input) {:segments (get (last first_pixel_input) "segments") :predictions (get (last first_pixel_input) "predictions")}))
+(def pixel_segments (json/decode (slurp "resources/pixel_1635765_2065695_segments.json")))
 
 (def query_ord (util/to-ordinal "2006-07-01"))
 
