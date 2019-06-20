@@ -6,7 +6,6 @@
             [clojure.stacktrace    :as stacktrace]
             [clojure.string        :as string]
             [clojure.tools.logging :as log]
-            [clojure.walk          :refer [keywordize-keys]]
             [java-time             :as jt]
             [lcmap.gaia.config     :refer [config]]
             [lcmap.gaia.file       :as file]
