@@ -3,12 +3,13 @@
             [clojure.tools.logging :as log]
             [clojure.java.io       :as io]
             [clojure.stacktrace    :as stacktrace]
+            [clojure.string        :as string]
             [lcmap.gaia.config     :refer [config]]
             [lcmap.gaia.chipmunk   :as chipmunk]
             [lcmap.gaia.file       :as file]
             [lcmap.gaia.gdal       :as gdal]
             [lcmap.gaia.nemo       :as nemo]
-            [lcmap.gaia.products   :as products]
+            [lcmap.gaia.change-products :as products]
             [lcmap.gaia.storage    :as storage]
             [lcmap.gaia.util       :as util]))
 
@@ -18,6 +19,46 @@
 (def meters_per_pixel     30)
 (def pixels_per_chip_side 100)
 (def chips_per_tile_side  50)
+
+(def product_details
+  (hash-map "primary-landcover"              {:abbr "LCPRI"   :type gdal/int8}              
+            "secondary-landcover"            {:abbr "LCSEC"   :type gdal/int8}            
+            "primary-landcover-confidence"   {:abbr "LCPCONF" :type gdal/int8}  
+            "secondary-landcover-confidence" {:abbr "LCSCONF" :type gdal/int8} 
+            "annual-change"                  {:abbr "LCACHG"  :type gdal/int8} 
+            "time-of-change"                 {:abbr "SCTIME"  :type gdal/int16}                
+            "magnitude-of-change"            {:abbr "SCMAG"   :type gdal/float32}            
+            "time-since-change"              {:abbr "SCLAST"  :type gdal/int16}              
+            "curve-fit"                      {:abbr "SCMQA"   :type gdal/int8}                     
+            "length-of-segment"              {:abbr "SCSTAB"  :type gdal/int16}))
+
+(defn get-products
+  [type]
+  (if (= type "cover")
+    (filter #(re-matches #"LC(.*)" (:abbr (last %))) product_details)
+    (filter #(re-matches #"SC(.*)" (:abbr (last %))) product_details)))
+
+(defn is-landcover
+  [name]
+  (let [abbr (:abbr (get product_details name))]
+    (try
+      (some? (re-matches #"LC(.*)" abbr))
+      (catch NullPointerException e
+        false))))
+
+(defn map-details
+  [tileid product_info date]
+  (let [grid      (:region config)
+        repr_date (string/replace date "-" "")
+        ccd_ver   (:ccd_ver config)
+        name      (first product_info)
+        product_abbr (:abbr (last product_info)) 
+        elements ["LCMAP" grid tileid repr_date ccd_ver product_abbr]
+        name (str (string/join "-" elements) ".tif")
+        prefix (storage/get-prefix grid date tileid "raster" product)
+        url (storage/get_url storage/bucketname (str prefix "/" name))
+        type (:type (last product_info))]
+    {:name name :prefix prefix :url url :type type}))
 
 (defn calc_offset
   "Returns pixel offset for UL coordinates of chips"
@@ -45,26 +86,34 @@
         values  (:values filters)
         fill_fn (fn [input fill] (if (zero? input) fill input))
         masked  (map * indata mask)]
-    (if (products/is-landcover product)
+    (if (is-landcover product)
       (map fill_fn masked values)
       masked)))
 
-(defn create_geotiff
-  [{date :date tile :tile tilex :tilex tiley :tiley chips :chips product :product :as all}]
-  (let [projection (util/get-projection)
-        map_path (products/map-path tile product date)
-        data_type (:type (get products/product_details product))]
-    (try
-      (create_blank_tile_tiff (:name map_path) tilex tiley projection data_type)
+(defn assemble_geotiff
+ [detail tx ty projection]
 
-      (doseq [chip chips
-              :let [cx (:cx chip)
-                    cy (:cy chip)
-                    chip_path (products/ppath product cx cy tile date)
-                    chip_data (again/with-retries (:retry_strategy config) (storage/get_json chip_path))
-                    chip_vals (again/with-retries (:retry_strategy config) (nlcd_filter (get chip_data "values") product cx cy))]]
-        (log/debugf "adding %s to tile: %s" (:name chip_path) tile)
-        (add_chip_to_tile (:name map_path) chip_vals tilex tiley cx cy))
+ (create_blank_tile_tiff (:name detail) tx ty projection (:type detail))
+
+ (doseq [chip chips
+         :let [cx (:cx chip)
+               cy (:cy chip)
+               chip_path (storage/ppath product cx cy tile date)
+               chip_data (again/with-retries (:retry_strategy config) (storage/get_json chip_path))
+               chip_vals (again/with-retries (:retry_strategy config) (nlcd_filter (get chip_data "values") product cx cy))]]
+   (log/debugf "adding %s to tile: %s" (:name chip_path) tile)
+   (add_chip_to_tile (:name map_path) chip_vals tilex tiley cx cy))
+
+)
+
+(defn create_raster
+  [{date :date tile :tile tilex :tilex tiley :tiley chips :chips product :product :as all}]
+  (let [projection     (util/get-projection)
+        product_info   (get-products product)
+        rasters_detail (map #(map-details tile date) product_info)
+        geotiffs       (map #(assemble_geotiff % tx ty projection) rasters_detail)]
+    (try
+     
 
       (log/infof "pushing tiff to object storage: %s" map_path)
       (storage/put_tiff map_path (:name map_path))

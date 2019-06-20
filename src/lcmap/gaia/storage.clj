@@ -1,7 +1,9 @@
 (ns lcmap.gaia.storage
   (:require [mount.core :as mount]
             [clojure.tools.logging :as log]
+            [clojure.string :as string]
             [lcmap.gaia.config :refer [config]]
+            [lcmap.gaia.util :as util]
             [cheshire.core :as json]
             [amazonica.aws.s3 :as s3]
             [java-time :as jt]
@@ -14,6 +16,29 @@
    :secret-key (:storage-secret-key config)
    :endpoint   (:storage-endpoint config)
    :client-config {:path-style-access-enabled true}})
+
+(defn get-prefix
+  ([grid date tile type product]
+   (let [hhh (subs tile 0 3)
+         vvv (subs tile 3 6)
+         year (first (string/split date #"-"))
+         elements [type year grid hhh vvv product]]
+     (string/join "/" elements)))
+  ([grid date tile type product cx cy]
+   (let [prfx (get-prefix grid date tile type product)
+         elements [prfx cx cy]]
+     (string/join "/" elements))))
+
+(defn ppath
+  ([product x y tile date suffix]
+   (let [grid (:region config)
+         fx   (util/float-string x)
+         fy   (util/float-string y)
+         name (->> [product fx fy date] (string/join "-") (#(str % suffix)))
+         prefix (get-prefix grid date tile "json" product fx fy)]
+     {:name name :prefix prefix}))
+  ([product x y tile date]
+   (ppath product x y tile date ".json")))
 
 (defn list_buckets
   ([cfg]
@@ -55,7 +80,8 @@
          byte_stream (java.io.ByteArrayInputStream. byte_data)
          metadata {:content-length (count byte_data) :content-type "application/json"}
          keyname (str (:prefix output_path) "/" (:name output_path))]
-     (try
+
+    (try
        (s3/put-object client-config :bucket-name bucket :key keyname :input-stream byte_stream :metadata metadata)
        true
        (catch Exception e 

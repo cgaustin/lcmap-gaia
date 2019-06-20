@@ -27,7 +27,7 @@
   [{:keys [body] :as req}]
   (log/infof "Received /raster request with params: %s" (dissoc body :chips))
   (try
-    (let [map_path (raster/create_geotiff body)]
+    (let [map_path (raster/create_raster body)]
       {:status 200 :body (assoc (dissoc body :chips) :map_name (:name map_path) :map_prefix (:prefix map_path) :map_url (:url map_path))})
     (catch Exception e
       (let [ex_data       (ex-data e)

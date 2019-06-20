@@ -15,52 +15,6 @@
             [lcmap.gaia.storage    :as storage]
             [lcmap.gaia.util       :as util]))
 
-(def product_details
-  (hash-map "time-of-change"      {:abbr "SCTIME" :type gdal/int16}                
-            "magnitude-of-change" {:abbr "SCMAG"  :type gdal/float32}            
-            "time-since-change"   {:abbr "SCLAST" :type gdal/int16}              
-            "curve-fit"           {:abbr "SCMQA"  :type gdal/int8}                     
-            "length-of-segment"   {:abbr "SCSTAB" :type gdal/int16}))
-
-(defn get-prefix
-  ([grid date tile type product]
-   (let [hhh (subs tile 0 3)
-         vvv (subs tile 3 6)
-         year (first (string/split date #"-"))
-         elements [type year grid hhh vvv product]]
-     (string/join "/" elements)))
-  ([grid date tile type product cx cy]
-   (let [prfx (get-prefix grid date tile type product)
-         elements [prfx cx cy]]
-     (string/join "/" elements))))
-
-(defn map-path
-  [tileid product date]
-  (let [grid      (:region config)
-        repr_date (string/replace date "-" "")
-        ccd_ver   (:ccd_ver config)
-        product_abbr (:abbr (get product_details product)) 
-        elements ["LCMAP" grid tileid repr_date ccd_ver product_abbr]
-        name (str (string/join "-" elements) ".tif")
-        prefix (get-prefix grid date tileid "raster" product)
-        url (storage/get_url storage/bucketname (str prefix "/" name))]
-    {:name name :prefix prefix :url url}))
-
-(defn ppath
-  ([product x y tile date suffix]
-   (let [grid (:region config)
-         fx   (util/float-string x)
-         fy   (util/float-string y)
-         name (->> [product fx fy date] (string/join "-") (#(str % suffix)))
-         prefix (get-prefix grid date tile "json" product fx fy)]
-     {:name name :prefix prefix}))
-  ([product x y tile date]
-   (ppath product x y tile date ".json")))
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;;;;;;;;;;;;    CHANGE PRODUCTS    ;;;;;;;;;;;;;;;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn product-exception-handler
   [exception product_name]
   (let [type    (keyword (str product_name "-exception"))
@@ -202,12 +156,11 @@
           grouped_products (group-by :date pixel_products)]
 
       (doseq [[date values] grouped_products]
-        (let [path (ppath "change" cx cy tile (util/to-yyyy-mm-dd date))
-              flattened_values (util/flatten-values values)
-              destination (string/join "/" [(:prefix path) (:name path)])]
+        (let [path (storage/ppath "change" cx cy tile (util/to-yyyy-mm-dd date))
+              flattened_values (util/flatten-values values)]
           (log/infof "storing : %s" (:name path))
           (again/with-retries (:retry_strategy config)
-            (storage/put_json destination flattened_values))))
+            (storage/put_json path flattened_values))))
       {:products "change" :cx cx :cy cy :dates dates :pixels (count pixel_products)})
     (catch Exception e
       (log/errorf "Exception in products/generate - args: %s  message: %s  data: %s  stacktrace: %s"

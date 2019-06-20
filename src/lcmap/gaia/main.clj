@@ -2,12 +2,8 @@
   (:gen-class)
   (:require [mount.core            :as mount]
             [clojure.tools.logging :as log]
-            [cheshire.core         :as json]
-            [lcmap.gaia.config     :refer [config]]
             [lcmap.gaia.gdal       :as gdal]
             [lcmap.gaia.storage    :as storage]
-            [lcmap.gaia.file       :as file]
-            [lcmap.gaia.products   :as products]
             [lcmap.gaia.server     :as server]))
 
 ;; ccdc results are the number of change segments
@@ -27,18 +23,7 @@
   (println message))
 
 (defn -main
-  ([]
-   (mount/start)
-   (server/run-server))
-  ([segments_file predictions_file product queryday]
-   (try
-     (let [segments_input (file/read-json segments_file)
-           predictions_input (file/read-json predictions_file)
-           product_data (products/values segments_input predictions_input product queryday)
-           chipx (get (first segments_input) "cx")
-           chipy (get (first segments_input) "cy")]
-       (stdout (json/generate-string {:x chipx :y chipy :values product_data})))
-     (catch Exception e
-       (stderr (str "Error encountered processing request. ex-data " (ex-data e)))
-       (stderr (str "exception: " e))))))
+  []
+  (mount/start)
+  (server/run-server))
 
