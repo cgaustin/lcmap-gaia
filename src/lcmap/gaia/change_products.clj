@@ -6,7 +6,6 @@
             [clojure.stacktrace    :as stacktrace]
             [clojure.string        :as string]
             [clojure.tools.logging :as log]
-            [clojure.walk          :refer [keywordize-keys]]
             [java-time             :as jt]
             [lcmap.gaia.config     :refer [config]]
             [lcmap.gaia.file       :as file]
@@ -86,7 +85,7 @@
      (catch Exception e
        (product-exception-handler e "time-of-change"))))
   ([pxpy segments date]
-   (let [valid (product-specs/segments-valid? (keywordize-keys segments))
+   (let [valid (product-specs/segments-valid? segments)
          values (map #(time-of-change % date) segments)]
      (if valid
        (last (sort values))
@@ -105,7 +104,7 @@
      (catch Exception e
        (product-exception-handler e "time-since-change"))))
   ([pxpy segments date]
-   (let [valid (product-specs/segments-valid? (keywordize-keys segments))
+   (let [valid (product-specs/segments-valid? segments)
          values (map #(time-since-change % date) segments)
          not_nil (filter number? values)]
      (if (or (empty? not_nil) (not valid))
@@ -127,7 +126,7 @@
      (catch Exception e
        (product-exception-handler e "magnitude-of-change"))))
   ([pxpy segments date]
-   (let [valid (product-specs/segments-valid? (keywordize-keys segments))
+   (let [valid (product-specs/segments-valid? segments)
          values (map #(magnitude-of-change % date) segments)]
      (if valid
        (last (sort values))
@@ -148,7 +147,7 @@
        (product-exception-handler e "length-of-segment"))))
   ([pxpy segments date]
    (let [fill   (- date (util/to-ordinal (:stability_begin config)))
-         valid (product-specs/segments-valid? (keywordize-keys segments))
+         valid (product-specs/segments-valid? segments)
          values (map #(length-of-segment % date) segments)]
      (if valid
        (first (sort values))
@@ -167,7 +166,7 @@
      (catch Exception e
        (product-exception-handler e "curve-fit"))))
   ([pxpy segments date]
-   (let [valid (product-specs/segments-valid? (keywordize-keys segments))
+   (let [valid (product-specs/segments-valid? segments)
          values (map #(curve-fit % date) segments)]
      (if valid
        (last (sort values))

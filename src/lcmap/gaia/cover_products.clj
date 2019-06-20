@@ -311,8 +311,8 @@
 (defn characterize-inputs
   "Return a hash-map characterizing details of the segment"
   [pixelxy inputs query_day]
-  (let [segments_valid (product-specs/segments-valid? (keywordize-keys (:segments inputs)))
-        predictions_valid (product-specs/predictions-valid? (keywordize-keys (:predictions inputs)) )
+  (let [segments_valid (product-specs/segments-valid? (:segments inputs))
+        predictions_valid (product-specs/predictions-valid? (:predictions inputs))
         response    #(hash-map :pixelxy pixelxy :segments % :date query_day)]
     (if (and segments_valid predictions_valid)
       (response (map #(characterize-segment % query_day (:predictions inputs)) (:segments inputs)))
