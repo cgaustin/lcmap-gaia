@@ -11,26 +11,19 @@
             [lcmap.gaia.nemo     :as nemo]
             [lcmap.gaia.test-resources :as tr]))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;;;;;;;;;;;;    CHANGE PRODUCT TESTS    ;;;;;;;;;;;;;;;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(def response_set (set [:pixelx :pixely :val]))
-
 (deftest get-prefix-test-raster
   (let [grid "cu"
         date "2001-07-01"
         tile "123456"
-        result (cover-products/get-prefix grid date tile "raster" "time-since-change")]
-    (is (= result "raster/2001/cu/123/456/time-since-change"))))
+        result (cover-products/get-prefix grid date tile "raster" "primary-landcover")]
+    (is (= result "raster/2001/cu/123/456/primary-landcover"))))
 
 (deftest get-prefix-test-json
   (let [grid "cu"
         date "2001-07-01"
         tile "123456"
-        result (cover-products/get-prefix grid date tile "json" "time-since-change" 222 333)]
-    (is (= result "json/2001/cu/123/456/time-since-change/222/333"))))
-
+        result (cover-products/get-prefix grid date tile "json" "cover" 222 333)]
+    (is (= result "json/2001/cu/123/456/cover/222/333"))))
 
 (deftest map-path-test
   (with-redefs [config {:region "CU" :ccd_ver "V01"}
@@ -240,7 +233,9 @@
       ; as a last resort return lc_inbtw configuration value
       (is (= (:lc_inbtw config)
              (cover-products/landcover input 0 (merge mod_cfg {:fill_difflc false})))))
-    ))
+
+    ; annual-change product test
+    (is (= (:ag (:lc_map config)) (cover-products/change first_pixel)))))
 
 
 (deftest landcover_confidence_test
