@@ -308,4 +308,12 @@
 
   (is (= 5 (count cover-products/product_details))))
 
+(deftest generate-test
+  (with-redefs [nemo/segments-sorted (fn [a b c] (util/sort-by-key tr/segments_json "sday"))
+                nemo/predictions (fn [a b] tr/predictions_json)
+                storage/put_json (fn [a b] true)]
+    (let [params {:dates ["2007-07-01" "2008-07-01"] :cx 111111 :cy 222222 :tile "123456"}
+          result (cover-products/generate params)]
+      (is (= result {:products "cover" :cx 111111 :cy 222222 :dates ["2007-07-01" "2008-07-01"] :pixels 20000})))))
+
 

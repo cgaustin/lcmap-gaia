@@ -366,7 +366,8 @@
               destination (string/join "/" [(:prefix path) (:name path)])]
           (log/infof "storing : %s" (:name path))
           (again/with-retries (:retry_strategy config)
-            (storage/put_json destination flattened_values)))))
+            (storage/put_json destination flattened_values))))
+      {:products "cover" :cx cx :cy cy :dates dates :pixels (count pixel_products)})
     (catch Exception e
       (log/errorf "Exception in products/generation - args: %s  message: %s  data: %s  stacktrace: %s"
                   all (.getMessage e) (ex-data e) (stacktrace/print-stack-trace e))
