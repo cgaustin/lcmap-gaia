@@ -47,18 +47,18 @@
         false))))
 
 (defn map-details
-  [tileid product_info date]
+  [tileid product_info date product]
   (let [grid      (:region config)
         repr_date (string/replace date "-" "")
         ccd_ver   (:ccd_ver config)
-        name      (first product_info)
+        data_product (first product_info)
         product_abbr (:abbr (last product_info)) 
         elements ["LCMAP" grid tileid repr_date ccd_ver product_abbr]
         name (str (string/join "-" elements) ".tif")
         prefix (storage/get-prefix grid date tileid "raster" product)
         url (storage/get_url storage/bucketname (str prefix "/" name))
         type (:type (last product_info))]
-    {:name name :prefix prefix :url url :type type}))
+    {:name name :prefix prefix :url url :data-type type :data-product data_product}))
 
 (defn calc_offset
   "Returns pixel offset for UL coordinates of chips"
@@ -74,11 +74,6 @@
   (let [values (repeat (* 5000 5000) 0)]
     (gdal/create_geotiff name values ulx uly projection data_type 5000 5000 0 0)))
 
-(defn add_chip_to_tile
-  [name values tile_x tile_y chip_x chip_y]
-  (let [[x_offset y_offset] (calc_offset tile_x tile_y chip_x chip_y)]
-    (gdal/update_geotiff name values x_offset y_offset)))
-
 (defn nlcd_filter
   [indata product cx cy]
   (let [filters (chipmunk/nlcd_filters cx cy)
@@ -90,39 +85,47 @@
       (map fill_fn masked values)
       masked)))
 
-(defn assemble_geotiff
- [detail tx ty projection]
-
- (create_blank_tile_tiff (:name detail) tx ty projection (:type detail))
-
- (doseq [chip chips
-         :let [cx (:cx chip)
-               cy (:cy chip)
-               chip_path (storage/ppath product cx cy tile date)
-               chip_data (again/with-retries (:retry_strategy config) (storage/get_json chip_path))
-               chip_vals (again/with-retries (:retry_strategy config) (nlcd_filter (get chip_data "values") product cx cy))]]
-   (log/debugf "adding %s to tile: %s" (:name chip_path) tile)
-   (add_chip_to_tile (:name map_path) chip_vals tilex tiley cx cy))
-
-)
+(defn add_chip_to_tile
+  [name values tile_x tile_y chip_x chip_y product]
+  (let [[x_offset y_offset] (calc_offset tile_x tile_y chip_x chip_y)
+        filtered_values (nlcd_filter values product chip_x chip_y)]
+    (gdal/update_geotiff name filtered_values x_offset y_offset)))
 
 (defn create_raster
   [{date :date tile :tile tilex :tilex tiley :tiley chips :chips product :product :as all}]
   (let [projection     (util/get-projection)
         product_info   (get-products product)
-        rasters_detail (map #(map-details tile date) product_info)
-        geotiffs       (map #(assemble_geotiff % tx ty projection) rasters_detail)]
-    (try
-     
+        rasters_detail (map #(map-details tile % date product) product_info)] ; (:name :prefix :url :data-type :data-product)
 
-      (log/infof "pushing tiff to object storage: %s" map_path)
-      (storage/put_tiff map_path (:name map_path))
-      (log/infof "deleting local tiff: %s" (:name map_path))
-      (io/delete-file (:name map_path))
-      map_path
+    (try
+      ; create empty tiffs
+      (map #(create_blank_tile_tiff (:name %) tilex tiley projection (:data-type %)) rasters_detail)
+      ; step thru the chips and add their data to each raster
+      (doseq [chip chips
+              :let [cx (:cx chip)
+                    cy (:cy chip)
+                    chip_path (storage/ppath product cx cy tile date)
+                    chip_data (again/with-retries (:retry_strategy config) (storage/get_json chip_path))
+                    ;chip_vals (again/with-retries (:retry_strategy config) (nlcd_filter (get chip_data "values") product cx cy))
+                    chip_vals (fn [i] (map #(get % i) chip_data))
+                    outputs (map #(add_chip_to_tile (:name %) (chip_vals (:data-product %)) tilex tiley cx cy (:data-product %)) rasters_detail)]]
+
+        (log/infof "adding cx: %s cy: %s data to cover product rasters for tile %s" cx cy tile)
+        (log/infof "%s rasters updated" (count outputs)) 
+        (log/infof "finished adding cx: %s cy: %s data to cover product rasters for tile %s" cx cy tile))
+     
+      (doseq [raster rasters_detail]
+        (log/infof "pushing tiffs to object storage: %s" (:name raster))
+        (storage/put_tiff raster (:name raster))
+        (log/infof "deleting local tiff: %s" (:name raster))
+        (io/delete-file (:name raster)))
+      
+      (map :name rasters_detail)
       (catch Exception e
         (log/errorf "Exception in raster/create_geotiff - args: %s - message: %s - data: %s - stacktrace: %s"
                     (dissoc all :chips) (.getMessage e) (ex-data e) (stacktrace/print-stack-trace e))
         (throw (ex-info "Exception in raster/create_geotiff" {:type "data-generation-error" 
                                                               :message (.getMessage e)
-                                                              :map_path map_path }))))))
+                                                              :rasters_detail rasters_detail }))))
+
+))
