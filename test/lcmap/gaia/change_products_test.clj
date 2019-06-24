@@ -16,41 +16,6 @@
 ;; "sday: 1994-08-07  eday: 1997-12-21"
 ;; "sday: 1998-01-22  eday: 2017-09-23"
 
-(deftest get-prefix-test-raster
-  (let [grid "cu"
-        date "2001-07-01"
-        tile "123456"
-        result (change-products/get-prefix grid date tile "raster" "time-since-change")]
-    (is (= result "raster/2001/cu/123/456/time-since-change"))))
-
-(deftest get-prefix-test-json
-  (let [grid "cu"
-        date "2001-07-01"
-        tile "123456"
-        result (change-products/get-prefix grid date tile "json" "time-since-change" 222 333)]
-    (is (= result "json/2001/cu/123/456/time-since-change/222/333"))))
-
-(deftest map-path-test
-  (with-redefs [config {:region "CU" :ccd_ver "V01"}
-                storage/get_url (fn [a b] (str a "/" b))]
-    (let [tileid "123456"
-          product "time-since-change"
-          date "2007-07-01"
-          result (change-products/map-path tileid product date)]
-      (is (= (keys result) '(:name :prefix :url)))
-      (is (= (:prefix result) "raster/2007/CU/123/456/time-since-change"))
-      (is (string/includes? (:name result) "LCMAP-CU-123456-20070701-"))
-      (is (string/includes? (:name result) "-V01-SCLAST.tif")))))
-
-(deftest ppath-test
-  (with-redefs [config {:region "CU"}]
-    (let [product "TSC"
-          x "111111"
-          y "222222"
-          tile "345678"
-          date "2007-07-01"
-          result (change-products/ppath product x y tile date)]
-      (is (= result {:name "TSC-111111.0-222222.0-2007-07-01.json", :prefix "json/2007/CU/345/678/TSC/111111.0/222222.0"})))))
 
 (deftest time-of-change-single-model-test
   (let [input (merge (second test_inputs) {"chprob" 1.0 })

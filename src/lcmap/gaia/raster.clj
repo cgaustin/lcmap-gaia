@@ -21,16 +21,16 @@
 (def chips_per_tile_side  50)
 
 (def product_details
-  (hash-map "primary-landcover"              {:abbr "LCPRI"   :type gdal/int8}              
-            "secondary-landcover"            {:abbr "LCSEC"   :type gdal/int8}            
-            "primary-landcover-confidence"   {:abbr "LCPCONF" :type gdal/int8}  
-            "secondary-landcover-confidence" {:abbr "LCSCONF" :type gdal/int8} 
-            "annual-change"                  {:abbr "LCACHG"  :type gdal/int8} 
-            "time-of-change"                 {:abbr "SCTIME"  :type gdal/int16}                
-            "magnitude-of-change"            {:abbr "SCMAG"   :type gdal/float32}            
-            "time-since-change"              {:abbr "SCLAST"  :type gdal/int16}              
-            "curve-fit"                      {:abbr "SCMQA"   :type gdal/int8}                     
-            "length-of-segment"              {:abbr "SCSTAB"  :type gdal/int16}))
+  (hash-map "primary-landcover"    {:abbr "LCPRI"   :type gdal/int8}              
+            "secondary-landcover"  {:abbr "LCSEC"   :type gdal/int8}            
+            "primary-confidence"   {:abbr "LCPCONF" :type gdal/int8}  
+            "secondary-confidence" {:abbr "LCSCONF" :type gdal/int8} 
+            "annual-change"        {:abbr "LCACHG"  :type gdal/int8} 
+            "time-of-change"       {:abbr "SCTIME"  :type gdal/int16}                
+            "magnitude-of-change"  {:abbr "SCMAG"   :type gdal/float32}            
+            "time-since-change"    {:abbr "SCLAST"  :type gdal/int16}              
+            "curve-fit"            {:abbr "SCMQA"   :type gdal/int8}                     
+            "length-of-segment"    {:abbr "SCSTAB"  :type gdal/int16}))
 
 (defn get-products
   [type]
@@ -86,10 +86,9 @@
       masked)))
 
 (defn add_chip_to_tile
-  [name values tile_x tile_y chip_x chip_y product]
-  (let [[x_offset y_offset] (calc_offset tile_x tile_y chip_x chip_y)
-        filtered_values (nlcd_filter values product chip_x chip_y)]
-    (gdal/update_geotiff name filtered_values x_offset y_offset)))
+  [name values tile_x tile_y chip_x chip_y]
+  (let [[x_offset y_offset] (calc_offset tile_x tile_y chip_x chip_y)]
+    (gdal/update_geotiff name values x_offset y_offset)))
 
 (defn create_raster
   [{date :date tile :tile tilex :tilex tiley :tiley chips :chips product :product :as all}]
@@ -99,20 +98,22 @@
 
     (try
       ; create empty tiffs
-      (map #(create_blank_tile_tiff (:name %) tilex tiley projection (:data-type %)) rasters_detail)
+      (doseq [raster rasters_detail]
+        (create_blank_tile_tiff (:name raster) tilex tiley projection (:data-type raster))
+        (log/infof "created empty %s raster!" (:name raster)))
+
       ; step thru the chips and add their data to each raster
       (doseq [chip chips
               :let [cx (:cx chip)
                     cy (:cy chip)
                     chip_path (storage/ppath product cx cy tile date)
                     chip_data (again/with-retries (:retry_strategy config) (storage/get_json chip_path))
-                    ;chip_vals (again/with-retries (:retry_strategy config) (nlcd_filter (get chip_data "values") product cx cy))
-                    chip_vals (fn [i] (map #(get % i) chip_data))
-                    outputs (map #(add_chip_to_tile (:name %) (chip_vals (:data-product %)) tilex tiley cx cy (:data-product %)) rasters_detail)]]
+                    chip_vals (fn [i] (nlcd_filter (map #(get % i) chip_data) i cx cy))]]
 
-        (log/infof "adding cx: %s cy: %s data to cover product rasters for tile %s" cx cy tile)
-        (log/infof "%s rasters updated" (count outputs)) 
-        (log/infof "finished adding cx: %s cy: %s data to cover product rasters for tile %s" cx cy tile))
+        (doseq [raster rasters_detail]
+          (log/infof "adding cx: %s cy: %s data raster %s" cx cy (:name raster))
+          (add_chip_to_tile (:name raster) (chip_vals (:data-product raster)) tilex tiley cx cy)
+          (log/infof "success for cx: %s cy: %s raster %s" cx cy (:name raster))))
      
       (doseq [raster rasters_detail]
         (log/infof "pushing tiffs to object storage: %s" (:name raster))
@@ -126,6 +127,4 @@
                     (dissoc all :chips) (.getMessage e) (ex-data e) (stacktrace/print-stack-trace e))
         (throw (ex-info "Exception in raster/create_geotiff" {:type "data-generation-error" 
                                                               :message (.getMessage e)
-                                                              :rasters_detail rasters_detail }))))
-
-))
+                                                              :rasters_detail rasters_detail }))))))

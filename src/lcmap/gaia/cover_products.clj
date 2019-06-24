@@ -313,7 +313,7 @@
           ordinal_dates        (map util/to-ordinal dates)
           pixel_dates          (combo/cartesian-product ordinal_dates (keys pixel_inputs)) ; ([ordinal-date [px py]], ...)
           characterized_pixels (map #(characterize-inputs (last %) (get pixel_inputs (last %)) (first %)) pixel_dates)
-          pixel_products       (map products characterized_pixels)
+          pixel_products       (pmap products characterized_pixels)
           grouped_products     (group-by :date pixel_products)]
 
       (doseq [[date values] grouped_products]

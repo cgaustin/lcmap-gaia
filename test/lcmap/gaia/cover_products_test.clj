@@ -11,40 +11,6 @@
             [lcmap.gaia.nemo     :as nemo]
             [lcmap.gaia.test-resources :as tr]))
 
-(deftest get-prefix-test-raster
-  (let [grid "cu"
-        date "2001-07-01"
-        tile "123456"
-        result (cover-products/get-prefix grid date tile "raster" "primary-landcover")]
-    (is (= result "raster/2001/cu/123/456/primary-landcover"))))
-
-(deftest get-prefix-test-json
-  (let [grid "cu"
-        date "2001-07-01"
-        tile "123456"
-        result (cover-products/get-prefix grid date tile "json" "cover" 222 333)]
-    (is (= result "json/2001/cu/123/456/cover/222/333"))))
-
-(deftest map-path-test
-  (with-redefs [config {:region "CU" :ccd_ver "V01"}
-                storage/get_url (fn [a b] (str a "/" b))]
-    (let [tileid "123456"
-          product "primary-landcover"
-          date "2007-07-01"
-          result (cover-products/map-path tileid product date)]
-      (is (= (keys result) '(:name :prefix :url)))
-      (is (= (:prefix result) "raster/2007/CU/123/456/primary-landcover"))
-      (is (= (:name result) "LCMAP-CU-123456-20070701-V01-LCPRI.tif")))))
-
-(deftest ppath-test
-  (with-redefs [config {:region "CU"}]
-    (let [product "TSC"
-          x "111111"
-          y "222222"
-          tile "345678"
-          date "2007-07-01"
-          result (cover-products/ppath product x y tile date)]
-      (is (= result {:name "TSC-111111.0-222222.0-2007-07-01.json", :prefix "json/2007/CU/345/678/TSC/111111.0/222222.0"})))))
 
 (deftest falls_between_eday_sday-coll-test
   (let [map_a {:follows_eday true :precedes_sday false}
@@ -299,14 +265,6 @@
              (cover-products/confidence input 0))))
 ))
 
-(deftest product_details_test
-  (is (= (keys cover-products/product_details) 
-         '("primary-landcover" "annual-change" "secondary-landcover-confidence" "secondary-landcover" "primary-landcover-confidence")))
-  
-  (is (= (map :abbr (vals cover-products/product_details)) 
-         '("LCPRI" "LCACHG" "LCSCONF" "LCSEC" "LCPCONF")))
-
-  (is (= 5 (count cover-products/product_details))))
 
 (deftest generate-test
   (with-redefs [nemo/segments-sorted (fn [a b c] (util/sort-by-key tr/segments_json "sday"))

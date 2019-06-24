@@ -152,7 +152,7 @@
           grouped_segments (util/pixel-groups segments)
           ordinal_dates    (map util/to-ordinal dates)
           pixel_dates      (combo/cartesian-product ordinal_dates (keys grouped_segments))
-          pixel_products   (map #(products (last %) (get grouped_segments (last %)) (first %)) pixel_dates)
+          pixel_products   (pmap #(products (last %) (get grouped_segments (last %)) (first %)) pixel_dates)
           grouped_products (group-by :date pixel_products)]
 
       (doseq [[date values] grouped_products]
