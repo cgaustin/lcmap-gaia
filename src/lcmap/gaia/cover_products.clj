@@ -309,20 +309,21 @@
           predictions          (nemo/predictions cx cy)
           grouped_segments     (util/pixel-groups segments)
           grouped_predictions  (util/pixel-groups predictions)
-          pixel_inputs         (into {} (map #(hash-map % {:segments (get grouped_segments %) :predictions (get grouped_predictions %)} ) (keys grouped_segments))) 
-          ordinal_dates        (map util/to-ordinal dates)
-          pixel_dates          (combo/cartesian-product ordinal_dates (keys pixel_inputs)) ; ([ordinal-date [px py]], ...)
-          characterized_pixels (map #(characterize-inputs (last %) (get pixel_inputs (last %)) (first %)) pixel_dates)
-          pixel_products       (pmap products characterized_pixels)
-          grouped_products     (group-by :date pixel_products)]
+          pixel_inputs         (into {} (map #(hash-map % {:segments (get grouped_segments %) :predictions (get grouped_predictions %)}) (keys grouped_segments))) 
+          ordinal_dates        (map util/to-ordinal dates)]
 
-      (doseq [[date values] grouped_products]
-        (let [path (storage/ppath "cover" cx cy tile (util/to-yyyy-mm-dd date))
-              flattened_values (util/flatten-values values)]
+      (doseq [date ordinal_dates]
+        (log/infof "working on cover products for: %s" (util/to-yyyy-mm-dd date))
+        (let [pixel_dates      (combo/cartesian-product [date] (keys pixel_inputs)) ; ([ordinal-date [px py]], ...)]
+              comp_fn          (comp products #(characterize-inputs (last %) (get pixel_inputs (last %)) (first %)))
+              pixel_products   (pmap comp_fn pixel_dates)
+              path             (storage/ppath "cover" cx cy tile (util/to-yyyy-mm-dd date))
+              flattened_values (util/flatten-values pixel_products)]
           (log/infof "storing : %s" (:name path))
           (again/with-retries (:retry_strategy config)
-            (storage/put_json path flattened_values))))
-      {:products "cover" :cx cx :cy cy :dates dates :pixels (count pixel_products)})
+             (storage/put_json path flattened_values))))
+
+      {:products "cover" :cx cx :cy cy :dates dates})
     (catch Exception e
       (log/errorf "Exception in products/generation - args: %s  message: %s  data: %s  stacktrace: %s"
                   all (.getMessage e) (ex-data e) (stacktrace/print-stack-trace e))

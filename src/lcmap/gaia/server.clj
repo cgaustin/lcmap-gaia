@@ -58,6 +58,7 @@
 
 (defmethod product-gen :cover
   [{:keys [body] :as req}]
+  (log/infof "Received /product request with params: %s" body)
   (try
     (let [results (cover-products/generate body)
           failures (:failures results)]
@@ -85,6 +86,7 @@
 
 (defmethod product-gen :change
   [{:keys [body] :as req}]
+  (log/infof "Received /product request with params: %s" body)
   (try
     (let [results (change-products/generate body)
           failures (:failures results)]
