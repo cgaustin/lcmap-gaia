@@ -83,4 +83,4 @@
                 storage/put_json (fn [a b] true)]
     (let [params {:dates ["2007-07-01" "2008-07-01"] :cx 111111 :cy 222222 :tile "123456"}
           result (change-products/generate params)]
-      (is (= result {:products "change" :cx 111111 :cy 222222 :dates ["2007-07-01" "2008-07-01"] :pixels 20000})))))
+      (is (= result {:products "change" :cx 111111 :cy 222222 :dates ["2007-07-01" "2008-07-01"]})))))

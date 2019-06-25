@@ -19,7 +19,7 @@
   [x y]
   (let [url (results-url x y (:segments_path config))
         options {:timeout (:nemo_timeout config)}
-        response @(http/get url options)]
+        response (util/log-time @(http/get url options) (format "Segments request for x %s  y %s" x y)) ]
     (if (= 200 (:status response))
       (parse_body response)
       (do (log/debugf "Error requesting segments data from Nemo - url: %s  response: %s" url response)
@@ -32,9 +32,9 @@
   [x y]
   (let [url (results-url x y (:predictions_path config))
         options {:timeout (:nemo_timeout config)}
-        response @(http/get url options)]
+        response (util/log-time @(http/get url options) (format "Predictions request for chip x:%s y:%s " x y))]
     (if (= 200 (:status response))
-      (parse_body response)
+      (parse_body response) 
       (do (log/debugf "Error requesting predictions data from Nemo - url: %s  response: %s" url response)
           (throw (ex-info "Error requesting predictions data from Nemo" {:type "data-request-error"
                                                                          :message "non-200 response from nemo for predictions data"

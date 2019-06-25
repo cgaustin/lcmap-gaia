@@ -1,6 +1,5 @@
 (ns lcmap.gaia.raster
-  (:require [again.core            :as again]
-            [clojure.tools.logging :as log]
+  (:require [clojure.tools.logging :as log]
             [clojure.java.io       :as io]
             [clojure.stacktrace    :as stacktrace]
             [clojure.string        :as string]
@@ -102,19 +101,21 @@
         (create_blank_tile_tiff (:name raster) tilex tiley projection (:data-type raster))
         (log/infof "created empty %s raster!" (:name raster)))
 
-      ; step thru the chips and add their data to each raster
+      ; step thru the chips coords and retrieve the data for all products
       (doseq [chip chips
               :let [cx (:cx chip)
                     cy (:cy chip)
                     chip_path (storage/ppath product cx cy tile date)
-                    chip_data (again/with-retries (:retry_strategy config) (storage/get_json chip_path))
+                    chip_data (util/with-retry (storage/get_json chip_path))
                     chip_vals (fn [i] (nlcd_filter (map #(get % i) chip_data) i cx cy))]]
-
+        
+        ; for each raster product, add the appropriate data to the correct raster
         (doseq [raster rasters_detail]
           (log/infof "adding cx: %s cy: %s data raster %s" cx cy (:name raster))
           (add_chip_to_tile (:name raster) (chip_vals (:data-product raster)) tilex tiley cx cy)
           (log/infof "success for cx: %s cy: %s raster %s" cx cy (:name raster))))
      
+      ; push rasters to object store
       (doseq [raster rasters_detail]
         (log/infof "pushing tiffs to object storage: %s" (:name raster))
         (storage/put_tiff raster (:name raster))

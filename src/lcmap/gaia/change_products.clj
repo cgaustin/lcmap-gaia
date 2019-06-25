@@ -1,7 +1,6 @@
 (ns lcmap.gaia.change-products
   (:gen-class)
-  (:require [again.core :as again] 
-            [clojure.math.numeric-tower :as math]
+  (:require [clojure.math.numeric-tower :as math]
             [clojure.math.combinatorics :as combo]
             [clojure.stacktrace    :as stacktrace]
             [clojure.string        :as string]
@@ -136,32 +135,24 @@
                        :time-since-change (time-since-change pxpy segments date)
                        :time-of-change (time-of-change pxpy segments date)})))
 
-(defn retry-handler [i cause]
-  (let [exception (::again/exception i)
-        data (ex-data exception)]
-    (when exception
-      (do
-        (if (= cause (:cause data))
-          ::again/fail
-          (log/infof "retrying chip: %s" data))))))
-
 (defn generate
   [{dates :dates cx :cx cy :cy tile :tile :as all}]
   (try
-    (let [segments         (nemo/segments-sorted cx cy "sday")
-          grouped_segments (util/pixel-groups segments)
-          ordinal_dates    (map util/to-ordinal dates)
-          pixel_dates      (combo/cartesian-product ordinal_dates (keys grouped_segments))
-          pixel_products   (pmap #(products (last %) (get grouped_segments (last %)) (first %)) pixel_dates)
-          grouped_products (group-by :date pixel_products)]
+    (let [segments         (util/with-retry (nemo/segments-sorted cx cy "sday")) 
+          grouped_segments (util/pixel-groups segments)]
 
-      (doseq [[date values] grouped_products]
-        (let [path (storage/ppath "change" cx cy tile (util/to-yyyy-mm-dd date))
-              flattened_values (util/flatten-values values)]
+      (doseq [date dates]
+        (let [ordinal_date   (util/to-ordinal date)
+              path           (storage/ppath "change" cx cy tile date)
+              pixel_dates    (combo/cartesian-product [ordinal_date] (keys grouped_segments))
+              pixel_products (pmap #(products (last %) (get grouped_segments (last %)) (first %)) pixel_dates)
+              time_message   (format "Change product calculation for tile:%s cx:%s cy:%s date:%s" tile cx cy date)
+              values         (util/log-time (util/flatten-values pixel_products) time_message)]
+
           (log/infof "storing : %s" (:name path))
-          (again/with-retries (:retry_strategy config)
-            (storage/put_json path flattened_values))))
-      {:products "change" :cx cx :cy cy :dates dates :pixels (count pixel_products)})
+          (util/with-retry (storage/put_json path values))))
+
+      {:products "change" :cx cx :cy cy :dates dates})
     (catch Exception e
       (log/errorf "Exception in products/generate - args: %s  message: %s  data: %s  stacktrace: %s"
                   all (.getMessage e) (ex-data e) (stacktrace/print-stack-trace e))

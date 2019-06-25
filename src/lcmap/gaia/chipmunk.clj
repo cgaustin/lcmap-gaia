@@ -1,11 +1,11 @@
 (ns lcmap.gaia.chipmunk
   (:import java.util.Base64)
-  (:require [again.core            :as again]
-            [org.httpkit.client    :as http]
+  (:require [org.httpkit.client    :as http]
             [cheshire.core         :as json]
             [clojure.tools.logging :as log]
             [clojure.stacktrace    :as stacktrace]
-            [lcmap.gaia.config     :refer [config]]))
+            [lcmap.gaia.config     :refer [config]]
+            [lcmap.gaia.util       :as util]))
 
 (defn chips_url
   "Return the url for requesting chip data for a given ubid, x, and y"
@@ -19,7 +19,7 @@
   [x y]
   (let [ubid "AUX_NLCD"
         url (chips_url ubid x y)
-        response @(http/get url)
+        response (util/log-time @(http/get url) (format "AUX_NLCD Chipmunk request for chip x:%s  y:%s " x y )) 
         encoded ((comp #(get % "data") first json/decode) (:body response))
         decoded (.decode (Base64/getDecoder) encoded)
         as_ints (mapv int decoded)]
@@ -46,7 +46,7 @@
 
 (defn nlcd_filters
   [x y]
-  (let [values (again/with-retries (:retry_strategy config) (nlcd x y)) 
+  (let [values (util/with-retry (nlcd x y)) 
         mask (nlcd_mask values)]
     {:mask mask :values values}))
 

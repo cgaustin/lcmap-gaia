@@ -1,6 +1,7 @@
 (ns lcmap.gaia.util
   (:gen-class)
-  (:require [cheshire.core         :as json]
+  (:require [again.core            :as again]
+            [cheshire.core         :as json]
             [clojure.string        :as string]
             [clojure.stacktrace    :as stacktrace]
             [clojure.tools.logging :as log]
@@ -198,3 +199,17 @@
       (throw (ex-info "Exception in products/flatten_values" {:type "data-generation-error"
                                                               :message (.getMessage e)
                                                               :arg_count (count product_value_collection)})))))
+
+(defmacro log-time
+  "Evaluates expr and prints the time it took.  Returns the value of
+ expr." ; poached from clojure.core
+  [expr description]
+  `(let [start# (. System (nanoTime))
+         ret# ~expr]
+     (log/info (str ~description " took: " (/ (double (- (. System (nanoTime)) start#)) 1000000.0) " msecs"))
+     ret#))
+
+(defmacro with-retry
+  [expr]
+  `(again/with-retries (:retry_strategy config) ~expr))
+

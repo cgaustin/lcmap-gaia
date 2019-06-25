@@ -1,7 +1,6 @@
 (ns lcmap.gaia.cover-products
   (:gen-class)
-  (:require [again.core :as again] 
-            [clojure.math.numeric-tower :as math]
+  (:require [clojure.math.numeric-tower :as math]
             [clojure.math.combinatorics :as combo]
             [clojure.stacktrace    :as stacktrace]
             [clojure.string        :as string]
@@ -16,9 +15,9 @@
             [lcmap.gaia.util       :as util]))
 
 (defn product-exception-handler
-  [exception product_name]
+  [exception product_name pixel]
   (let [type    (keyword (str product_name "-exception"))
-        message (str "Error calculating " product_name)]
+        message (format "Error calculating %s / characterized_pixel: %s " product_name pixel)]
     (log/errorf "%s: %s  stacktrace: %s" 
                 message product_name (stacktrace/print-stack-trace exception))
     (throw (ex-info message {:type "data-generation-error" 
@@ -192,7 +191,7 @@
          (:lc_inbtw conf)))
 
      (catch Exception e
-       (product-exception-handler e "landcover"))))
+       (product-exception-handler e "landcover" characterized_pixel))))
   ([characterized_pixel rank] ; enable passing in the configuration
    (landcover characterized_pixel rank config)))
 
@@ -214,6 +213,7 @@
   ([characterized_pixel rank conf]
    (try
      (let [query_date          (:date characterized_pixel)
+           [px py]             (:pixelxy characterized_pixel)
            segments            (:segments characterized_pixel) ;characterized and sorted
            first_start_day     (:sday (first segments))
            last_end_day        (:eday (last segments))
@@ -244,7 +244,7 @@
         (:lcc_decline (:lc_defaults conf)) ; return lcc_decline value from lc_defaults config
 
         ; query date falls between a segments start date and end date
-        (not (nil? intersected_segment))
+        (and (not (nil? intersected_segment)) (not (empty? (:probabilities intersected_segment)))) 
         (util/scale-value (nth (get (last (:probabilities intersected_segment)) "prob") rank))
 
         ; query date falls between segments of same landcover classification
@@ -259,7 +259,7 @@
         (:none (:lc_map conf))))
 
      (catch Exception e
-       (product-exception-handler e "confidence"))))
+       (product-exception-handler e "confidence" characterized_pixel))))
   ([characterized_pixel rank]
    (confidence characterized_pixel rank config)))
 
@@ -293,35 +293,27 @@
                        :secondary-confidence secondary_confidence
                        :annual-change annual_change})))
 
-(defn retry-handler [i cause]
-  (let [exception (::again/exception i)
-        data (ex-data exception)]
-    (when exception
-      (do
-        (if (= cause (:cause data))
-          ::again/fail
-          (log/infof "retrying chip: %s" data))))))
-
 (defn generate
   [{dates :dates cx :cx cy :cy tile :tile :as all}]
   (try
-    (let [segments             (nemo/segments-sorted cx cy "sday")
-          predictions          (nemo/predictions cx cy)
+    (let [segments             (util/with-retry (nemo/segments-sorted cx cy "sday")) 
+          predictions          (util/with-retry (nemo/predictions cx cy)) 
           grouped_segments     (util/pixel-groups segments)
           grouped_predictions  (util/pixel-groups predictions)
-          pixel_inputs         (into {} (map #(hash-map % {:segments (get grouped_segments %) :predictions (get grouped_predictions %)}) (keys grouped_segments))) 
-          ordinal_dates        (map util/to-ordinal dates)]
+          pixel_coords         (keys grouped_segments)
+          pixel_hash-map       #(hash-map % {:segments (get grouped_segments %) :predictions (get grouped_predictions %)})
+          pixel_inputs         (into {} (map pixel_hash-map pixel_coords))]
 
-      (doseq [date ordinal_dates]
-        (log/infof "working on cover products for: %s" (util/to-yyyy-mm-dd date))
-        (let [pixel_dates      (combo/cartesian-product [date] (keys pixel_inputs)) ; ([ordinal-date [px py]], ...)]
+      (doseq [date dates]
+        (let [ordinal_date     (util/to-ordinal date)
+              pixel_dates      (combo/cartesian-product [ordinal_date] (keys pixel_inputs)) ; ([ordinal-date [px py]], ...)]
               comp_fn          (comp products #(characterize-inputs (last %) (get pixel_inputs (last %)) (first %)))
               pixel_products   (pmap comp_fn pixel_dates)
-              path             (storage/ppath "cover" cx cy tile (util/to-yyyy-mm-dd date))
-              flattened_values (util/flatten-values pixel_products)]
+              path             (storage/ppath "cover" cx cy tile date)
+              time_message     (format "Cover product calculation for tile:%s cx:%s cy:%s date:%s " tile cx cy date)
+              flattened_values (util/log-time (util/flatten-values pixel_products) time_message)]
           (log/infof "storing : %s" (:name path))
-          (again/with-retries (:retry_strategy config)
-             (storage/put_json path flattened_values))))
+          (util/with-retry (storage/put_json path flattened_values))))
 
       {:products "cover" :cx cx :cy cy :dates dates})
     (catch Exception e
