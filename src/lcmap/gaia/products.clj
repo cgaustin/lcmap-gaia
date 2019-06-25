@@ -440,7 +440,7 @@
         (:lcc_decline (:lc_defaults config)) ; return lcc_decline value from lc_defaults config
 
         ; query date falls between a segments start date and end date
-        (not (nil? intersected_segment))
+        (and (not (nil? intersected_segment)) (not (empty? (:probabilities intersected_segment)))) 
         (util/scale-value (nth (:prob (last (:probabilities intersected_segment))) rank))
 
         ; query date falls between segments of same landcover classification
