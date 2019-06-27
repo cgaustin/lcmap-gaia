@@ -3,7 +3,6 @@
   (:require [org.httpkit.client    :as http]
             [cheshire.core         :as json]
             [clojure.tools.logging :as log]
-            [clojure.stacktrace    :as stacktrace]
             [lcmap.gaia.config     :refer [config]]
             [lcmap.gaia.util       :as util]))
 
@@ -49,5 +48,3 @@
   (let [values (util/with-retry (nlcd x y)) 
         mask (nlcd_mask values)]
     {:mask mask :values values}))
-
-

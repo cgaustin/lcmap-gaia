@@ -3,7 +3,6 @@
   (:require [again.core            :as again]
             [cheshire.core         :as json]
             [clojure.string        :as string]
-            [clojure.stacktrace    :as stacktrace]
             [clojure.tools.logging :as log]
             [environ.core          :as environ]
             [java-time             :as jt]
@@ -156,11 +155,10 @@
            json_body (first (json/parse-string (:body @grid_response)))]
        (get json_body "proj"))
      (catch Exception e
-       (log/errorf "Exception in util/get-projection - url: %s stacktrace: %s" 
-                   (str (:chipmunk-host environ/env) "/grid") (stacktrace/print-stack-trace e))
-       (throw (ex-info "Exception in util/get-projection" {:type "data-request-error" 
-                                                           :message (.getMessage e) 
-                                                           :url (str (:chipmunk-host environ/env) "/grid")})))))
+       (let [grid_resource (str (:chipmunk-host environ/env) "/grid")
+             msg (format "problem in util/get-projection %s: %s" grid_resource (.getMessage e))]
+         (log/error msg)
+         (throw (ex-info msg {:type "data-request-error" :message msg} (.getCause e)))))))
   ([local]
    (let [grid (first (file/read-json "resources/grid.conus.json"))]
      (get grid "proj"))))
@@ -193,12 +191,10 @@
           flattened (flatten-vals sorted-y-rows :values)]
       flattened)
     (catch Exception e
-      (log/errorf "Exception in util/flatten_values - input count: %s first input: %s last input: %s message: %s  stacktrace: %s " 
-                  (count product_value_collection) (first product_value_collection) (last product_value_collection) (.getMessage e) 
-                  (stacktrace/print-stack-trace e))
-      (throw (ex-info "Exception in products/flatten_values" {:type "data-generation-error"
-                                                              :message (.getMessage e)
-                                                              :arg_count (count product_value_collection)})))))
+      (let [msg (format "problem in util/flatten_values - input count: %s first input: %s last input: %s message: %s"
+                        (count product_value_collection) (first product_value_collection) (last product_value_collection) (.getMessage e))]
+        (log/error msg)
+        (throw (ex-info msg {:type "data-generation-error" :message msg} (.getCause e)))))))
 
 (defmacro log-time
   "Evaluates expr and prints the time it took.  Returns the value of

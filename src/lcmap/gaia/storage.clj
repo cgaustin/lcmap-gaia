@@ -6,8 +6,7 @@
             [lcmap.gaia.util :as util]
             [cheshire.core :as json]
             [amazonica.aws.s3 :as s3]
-            [java-time :as jt]
-            [clojure.stacktrace :as stacktrace]))
+            [java-time :as jt]))
 
 (def bucketname (:storage-bucket config))
 
@@ -84,13 +83,10 @@
     (try
        (s3/put-object client-config :bucket-name bucket :key keyname :input-stream byte_stream :metadata metadata)
        true
-       (catch Exception e 
-         (log/errorf "Error in storage/put_json! path: %s in object store bucket %s - stacktrace: %s"
-                     output_path bucket (stacktrace/print-stack-trace e))
-         (throw (ex-info "Error persisting json to object storage " {:type "data-request-error"
-                                                                     :message (.getMessage e)
-                                                                     :bucket bucket 
-                                                                     :output_path output_path}))))))
+       (catch Exception e
+         (let [msg (format "problem putting object json %s: %s" keyname (.getMessage e))]
+           (log/error msg)
+           (throw (ex-info msg {:type "data-request-error" :message msg} (.getCause e))))))))
   ([output_path data]
    (put_json bucketname output_path data)))
 
@@ -103,13 +99,11 @@
            metadata {:content-length content-length :content-type "image/tiff"}]
        (s3/put-object client-config :bucket-name bucket :key keyname  :file javafile :metadata metadata)
        true)
-     (catch Exception e 
-       (log/errorf "Error persisting tiff %s to object storage bucket %s - stacktrace - %s" 
-                   filepath bucket (stacktrace/print-stack-trace e))
-       (throw (ex-info "Error persisting tiff to object storage " {:type "data-request-error"
-                                                                   :message (.getMessage e) 
-                                                                   :bucket bucket 
-                                                                   :filepath filepath})))))
+     (catch Exception e
+       (let [keyname (str (:prefix filepath) "/" (:name filepath))
+             msg (format "problem putting tiff %s: %s" keyname (.getMessage e))]
+         (log/error msg)
+         (throw (ex-info msg {:type "data-request-error" :message msg} (.getCause e)))))))
   ([filepath filelocation]
    (put_tiff bucketname filepath filelocation)))
 
@@ -138,12 +132,10 @@
      (let [s3object (s3/get-object client-config :bucket-name bucket :key (str (:prefix jsonpath) "/" (:name jsonpath)))
            s3content (clojure.java.io/reader (:object-content s3object))]
        (json/parse-stream s3content))
-     (catch Exception e 
-       (log/errorf "Unable to retrieve requested data from object store - jsonpath: %s bucket: %s stacktrace: %s" 
-                   jsonpath bucket (stacktrace/print-stack-trace e))
-       (throw (ex-info "Exception retrieving product json" {:type "data-request-error" 
-                                                            :message (.getMessage e) 
-                                                            :jsonpath jsonpath})))))
+     (catch Exception e
+       (let [msg (format "problem retrieving product json %s: %s" jsonpath (.getMessage e))]
+         (log/error msg)
+         (throw (ex-info msg {:type "data-request-error" :message msg} (.getCause e)))))))
   ([jsonpath]
    (get_json bucketname jsonpath)))
 

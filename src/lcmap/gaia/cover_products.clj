@@ -2,7 +2,6 @@
   (:gen-class)
   (:require [clojure.math.numeric-tower :as math]
             [clojure.math.combinatorics :as combo]
-            [clojure.stacktrace    :as stacktrace]
             [clojure.string        :as string]
             [clojure.tools.logging :as log]
             [java-time             :as jt]
@@ -16,13 +15,9 @@
 
 (defn product-exception-handler
   [exception product_name pixel]
-  (let [type    (keyword (str product_name "-exception"))
-        message (format "Error calculating %s / characterized_pixel: %s " product_name pixel)]
-    (log/errorf "%s: %s  stacktrace: %s" 
-                message product_name (stacktrace/print-stack-trace exception))
-    (throw (ex-info message {:type "data-generation-error" 
-                             :message type 
-                             :exception exception}))))
+  (let [msg (format "problem calculating %s with pixel %s: %s" product_name pixel (.getMessage exception))]
+    (log/error msg)
+    (throw (ex-info msg {:type "data-generation-error" :message msg} (.getCause exception)))))
 
 (defn falls-between-eday-sday
   "Convenience function for returning pair of maps with true values for :follows_eday and :precedes_sday keys.
@@ -317,8 +312,6 @@
 
       {:products "cover" :cx cx :cy cy :dates dates})
     (catch Exception e
-      (log/errorf "Exception in products/generation - args: %s  message: %s  data: %s  stacktrace: %s"
-                  all (.getMessage e) (ex-data e) (stacktrace/print-stack-trace e))
-      (throw (ex-info "Exception in products/generate" {:type "data-generation-error"
-                                                        :message (.getMessage e)
-                                                        :args all})))))
+      (let [msg (format "problem generating cover products for %s: %s" all (.getMessage e))]
+        (log/error msg)
+        (throw (ex-info msg {:type "data-generation-error" :message msg} (.getCause e)))))))

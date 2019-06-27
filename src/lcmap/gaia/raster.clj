@@ -1,7 +1,6 @@
 (ns lcmap.gaia.raster
   (:require [clojure.tools.logging :as log]
             [clojure.java.io       :as io]
-            [clojure.stacktrace    :as stacktrace]
             [clojure.string        :as string]
             [lcmap.gaia.config     :refer [config]]
             [lcmap.gaia.chipmunk   :as chipmunk]
@@ -122,10 +121,15 @@
         (log/infof "deleting local tiff: %s" (:name raster))
         (io/delete-file (:name raster)))
       
-      (map :name rasters_detail)
+      (map :url rasters_detail)
+
       (catch Exception e
-        (log/errorf "Exception in raster/create_geotiff - args: %s - message: %s - data: %s - stacktrace: %s"
-                    (dissoc all :chips) (.getMessage e) (ex-data e) (stacktrace/print-stack-trace e))
-        (throw (ex-info "Exception in raster/create_geotiff" {:type "data-generation-error" 
-                                                              :message (.getMessage e)
-                                                              :rasters_detail rasters_detail }))))))
+        (let [names (seq (map :name rasters_detail))
+              msg (format "problem creating rasters %s: %s" names (.getMessage e))]
+          (log/error msg)
+          (throw (ex-info msg {:type "data-generation-error" :message msg} (.getCause e)))))
+
+      (finally
+        (doseq [raster rasters_detail]
+          (log/errorf "deleting incomplete tiff: %s" (:name raster))
+          (io/delete-file (:name raster)))))))
