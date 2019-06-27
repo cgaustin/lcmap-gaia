@@ -1,14 +1,13 @@
 (ns lcmap.gaia.raster
-  (:require [again.core            :as again]
-            [clojure.tools.logging :as log]
+  (:require [clojure.tools.logging :as log]
             [clojure.java.io       :as io]
-            [clojure.stacktrace    :as stacktrace]
+            [clojure.string        :as string]
             [lcmap.gaia.config     :refer [config]]
             [lcmap.gaia.chipmunk   :as chipmunk]
             [lcmap.gaia.file       :as file]
             [lcmap.gaia.gdal       :as gdal]
             [lcmap.gaia.nemo       :as nemo]
-            [lcmap.gaia.products   :as products]
+            [lcmap.gaia.change-products :as products]
             [lcmap.gaia.storage    :as storage]
             [lcmap.gaia.util       :as util]))
 
@@ -18,6 +17,46 @@
 (def meters_per_pixel     30)
 (def pixels_per_chip_side 100)
 (def chips_per_tile_side  50)
+
+(def product_details
+  (hash-map "primary-landcover"    {:abbr "LCPRI"   :type gdal/int8}              
+            "secondary-landcover"  {:abbr "LCSEC"   :type gdal/int8}            
+            "primary-confidence"   {:abbr "LCPCONF" :type gdal/int8}  
+            "secondary-confidence" {:abbr "LCSCONF" :type gdal/int8} 
+            "annual-change"        {:abbr "LCACHG"  :type gdal/int8} 
+            "time-of-change"       {:abbr "SCTIME"  :type gdal/int16}                
+            "magnitude-of-change"  {:abbr "SCMAG"   :type gdal/float32}            
+            "time-since-change"    {:abbr "SCLAST"  :type gdal/int16}              
+            "curve-fit"            {:abbr "SCMQA"   :type gdal/int8}                     
+            "length-of-segment"    {:abbr "SCSTAB"  :type gdal/int16}))
+
+(defn get-products
+  [type]
+  (if (= type "cover")
+    (filter #(re-matches #"LC(.*)" (:abbr (last %))) product_details)
+    (filter #(re-matches #"SC(.*)" (:abbr (last %))) product_details)))
+
+(defn is-landcover
+  [name]
+  (let [abbr (:abbr (get product_details name))]
+    (try
+      (some? (re-matches #"LC(.*)" abbr))
+      (catch NullPointerException e
+        false))))
+
+(defn map-details
+  [tileid product_info date product]
+  (let [grid      (:region config)
+        repr_date (string/replace date "-" "")
+        ccd_ver   (:ccd_ver config)
+        data_product (first product_info)
+        product_abbr (:abbr (last product_info)) 
+        elements ["LCMAP" grid tileid repr_date ccd_ver product_abbr]
+        name (str (string/join "-" elements) ".tif")
+        prefix (storage/get-prefix grid date tileid "raster" product)
+        url (storage/get_url storage/bucketname (str prefix "/" name))
+        type (:type (last product_info))]
+    {:name name :prefix prefix :url url :data-type type :data-product data_product}))
 
 (defn calc_offset
   "Returns pixel offset for UL coordinates of chips"
@@ -33,11 +72,6 @@
   (let [values (repeat (* 5000 5000) 0)]
     (gdal/create_geotiff name values ulx uly projection data_type 5000 5000 0 0)))
 
-(defn add_chip_to_tile
-  [name values tile_x tile_y chip_x chip_y]
-  (let [[x_offset y_offset] (calc_offset tile_x tile_y chip_x chip_y)]
-    (gdal/update_geotiff name values x_offset y_offset)))
-
 (defn nlcd_filter
   [indata product cx cy]
   (let [filters (chipmunk/nlcd_filters cx cy)
@@ -45,35 +79,57 @@
         values  (:values filters)
         fill_fn (fn [input fill] (if (zero? input) fill input))
         masked  (map * indata mask)]
-    (if (products/is-landcover product)
+    (if (is-landcover product)
       (map fill_fn masked values)
       masked)))
 
-(defn create_geotiff
-  [{date :date tile :tile tilex :tilex tiley :tiley chips :chips product :product :as all}]
-  (let [projection (util/get-projection)
-        map_path (products/map-path tile product date)
-        data_type (:type (get products/product_details product))]
-    (try
-      (create_blank_tile_tiff (:name map_path) tilex tiley projection data_type)
+(defn add_chip_to_tile
+  [name values tile_x tile_y chip_x chip_y]
+  (let [[x_offset y_offset] (calc_offset tile_x tile_y chip_x chip_y)]
+    (gdal/update_geotiff name values x_offset y_offset)))
 
+(defn create_raster
+  [{date :date tile :tile tilex :tilex tiley :tiley chips :chips product :product :as all}]
+  (let [projection     (util/get-projection)
+        product_info   (get-products product)
+        rasters_detail (map #(map-details tile % date product) product_info)] ; (:name :prefix :url :data-type :data-product)
+
+    (try
+      ; create empty tiffs
+      (doseq [raster rasters_detail]
+        (create_blank_tile_tiff (:name raster) tilex tiley projection (:data-type raster))
+        (log/infof "created empty %s raster!" (:name raster)))
+
+      ; step thru the chips coords and retrieve the data for all products
       (doseq [chip chips
               :let [cx (:cx chip)
                     cy (:cy chip)
-                    chip_path (products/ppath product cx cy tile date)
-                    chip_data (again/with-retries (:retry_strategy config) (storage/get_json chip_path))
-                    chip_vals (again/with-retries (:retry_strategy config) (nlcd_filter (get chip_data "values") product cx cy))]]
-        (log/debugf "adding %s to tile: %s" (:name chip_path) tile)
-        (add_chip_to_tile (:name map_path) chip_vals tilex tiley cx cy))
+                    chip_path (storage/ppath product cx cy tile date)
+                    chip_data (util/with-retry (storage/get_json chip_path))
+                    chip_vals (fn [i] (nlcd_filter (map #(get % i) chip_data) i cx cy))]]
+        
+        ; for each raster product, add the appropriate data to the correct raster
+        (doseq [raster rasters_detail]
+          (log/infof "adding cx: %s cy: %s data raster %s" cx cy (:name raster))
+          (add_chip_to_tile (:name raster) (chip_vals (:data-product raster)) tilex tiley cx cy)
+          (log/infof "success for cx: %s cy: %s raster %s" cx cy (:name raster))))
+     
+      ; push rasters to object store
+      (doseq [raster rasters_detail]
+        (log/infof "pushing tiffs to object storage: %s" (:name raster))
+        (storage/put_tiff raster (:name raster))
+        (log/infof "deleting local tiff: %s" (:name raster))
+        (io/delete-file (:name raster)))
+      
+      (map :url rasters_detail)
 
-      (log/infof "pushing tiff to object storage: %s" map_path)
-      (storage/put_tiff map_path (:name map_path))
-      (log/infof "deleting local tiff: %s" (:name map_path))
-      (io/delete-file (:name map_path))
-      map_path
       (catch Exception e
-        (log/errorf "Exception in raster/create_geotiff - args: %s - message: %s - data: %s - stacktrace: %s"
-                    (dissoc all :chips) (.getMessage e) (ex-data e) (stacktrace/print-stack-trace e))
-        (throw (ex-info "Exception in raster/create_geotiff" {:type "data-generation-error" 
-                                                              :message (.getMessage e)
-                                                              :map_path map_path }))))))
+        (let [names (seq (map :name rasters_detail))
+              msg (format "problem creating rasters %s: %s" names (.getMessage e))]
+          (log/error msg)
+          (throw (ex-info msg {:type "data-generation-error" :message msg} (.getCause e)))))
+
+      (finally
+        (doseq [raster rasters_detail]
+          (log/errorf "deleting incomplete tiff: %s" (:name raster))
+          (io/delete-file (:name raster)))))))

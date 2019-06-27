@@ -1,5 +1,6 @@
 (ns lcmap.gaia.product-specs
-  (:require [clojure.spec.alpha :as spec]))
+  (:require [clojure.spec.alpha :as spec]
+            [clojure.walk :refer [keywordize-keys]]))
 
 (spec/def ::intr float?)
 (spec/def ::magr float?)
@@ -90,19 +91,19 @@
 
 (defn segment-valid?
   [segment]
-  (nil? (spec/explain-data ::segment segment)))
+  (nil? (spec/explain-data ::segment (keywordize-keys segment))))
 
 (defn segments-valid?
   [segments]
-  (nil? (spec/explain-data ::segments segments)))
+  (nil? (spec/explain-data ::segments (keywordize-keys segments))))
 
 (defn prediction-valid?
   [prediction]
-  (nil? (spec/explain-data ::prediction prediction)))
+  (nil? (spec/explain-data ::prediction (keywordize-keys prediction))))
 
 (defn predictions-valid?
   [predictions]
-  (nil? (spec/explain-data ::predictions predictions)))
+  (nil? (spec/explain-data ::predictions (keywordize-keys predictions))))
 
 (defn segment_check
   [segment]

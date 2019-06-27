@@ -1,7 +1,6 @@
 (ns lcmap.gaia.gdal
   (:require [mount.core :as mount]
             [lcmap.gaia.util :as util]
-            [clojure.stacktrace :as stacktrace]
             [clojure.tools.logging :as log])
   (:import [org.gdal.gdal gdal]
            [org.gdal.gdal Driver]
@@ -52,9 +51,9 @@
   :start (init))
 
 ; https://gdal.org/java/org/gdal/gdalconst/gdalconstConstants.html#GDT_Byte
-; GDT_Byte    (1) : Eight bit unsigned integer (data type)       -> 1
-; GDT_Float32 (6) : Thirty two bit floating point (data type) -> 6
-; GDT_UInt16  (2) : Sixteen bit unsigned integer (data type)   -> 2
+; GDT_Byte    (1) : Eight bit unsigned integer
+; GDT_Float32 (6) : Thirty two bit floating point
+; GDT_UInt16  (2) : Sixteen bit unsigned integer
 (def int8    (gdalconstJNI/GDT_Byte_get))
 (def int16   (gdalconstJNI/GDT_UInt16_get))
 (def float32 (gdalconstJNI/GDT_Float32_get))
@@ -73,12 +72,10 @@
       (.delete dataset))
     name
     (catch Exception e
-      (log/errorf "Exception in gdal/create_geotiff - name: %s ulx: %s uly: %s projection: %s data_type: %s x_size: %s y_size: %s x_offset: %s y_offset: %s stacktrace: %s"
-                  name ulx uly projection data_type x_size y_size x_offset y_offset (stacktrace/print-stack-trace e))
-      (throw (ex-info "Exception in gdal/create_geotiff" {:type "data-generation-error" 
-                                                          :message (.getMessage e)
-                                                          :name name 
-                                                          :data_type data_type })))))
+      (let [msg (format "problem in gdal/create_geotiff - name: %s ulx: %s uly: %s projection: %s data_type: %s x_size: %s y_size: %s x_offset: %s y_offset: %s, %s"
+                        name ulx uly projection data_type x_size y_size x_offset y_offset (.getMessage e))]
+        (log/errorf msg)
+        (throw (ex-info msg {:type "data-generation-error"} (.getCause e)))))))
 
 (defn update_geotiff
   ([name values x_offset y_offset x_size y_size]
@@ -89,10 +86,10 @@
        (.delete band)
        (.delete dataset))
      (catch Exception e
-       (log/errorf "Exception in gdal/update_geotiff - name: %s x_offset: %s y_offset: %s x_size: %s y_size: %s stacktrace: %s "
-                   name x_offset y_offset x_size y_size (stacktrace/print-stack-trace e))
-       (throw (ex-info "Exception in gdal/update_geotiff" {:type "data-generation-error" 
-                                                           :message (.getMessage e)
-                                                           :name name})))))
+       (let [msg (format "problem in gdal/update_geotiff - name: %s x_offset: %s y_offset: %s x_size: %s y_size: %s, %s"
+                         name x_offset y_offset x_size y_size (.getMessage e))]
+         (log/error msg)
+         (throw (ex-info msg {:type "data-generation-error" :message msg} (.getCause e)))))))
   ([tiff_name values x_offset y_offset]
    (update_geotiff tiff_name values x_offset y_offset 100 100)))
+

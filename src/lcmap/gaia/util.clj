@@ -1,8 +1,8 @@
 (ns lcmap.gaia.util
   (:gen-class)
-  (:require [cheshire.core         :as json]
+  (:require [again.core            :as again]
+            [cheshire.core         :as json]
             [clojure.string        :as string]
-            [clojure.stacktrace    :as stacktrace]
             [clojure.tools.logging :as log]
             [environ.core          :as environ]
             [java-time             :as jt]
@@ -59,6 +59,11 @@
   [datestring]
   (when (not (nil? datestring))
     (-> datestring (to-javatime) (javatime-to-ordinal))))
+
+(defn to-yyyy-mm-dd
+  "Convert ordinal value to a YYYY-MM-DD formatted string"
+  [ordinaldate]
+  (-> ordinaldate inc ordinal-to-javatime str))
 
 (defn coll-groups
   "Group collection of hash maps by shared keys values"
@@ -150,11 +155,10 @@
            json_body (first (json/parse-string (:body @grid_response)))]
        (get json_body "proj"))
      (catch Exception e
-       (log/errorf "Exception in util/get-projection - url: %s stacktrace: %s" 
-                   (str (:chipmunk-host environ/env) "/grid") (stacktrace/print-stack-trace e))
-       (throw (ex-info "Exception in util/get-projection" {:type "data-request-error" 
-                                                           :message (.getMessage e) 
-                                                           :url (str (:chipmunk-host environ/env) "/grid")})))))
+       (let [grid_resource (str (:chipmunk-host environ/env) "/grid")
+             msg (format "problem in util/get-projection %s: %s" grid_resource (.getMessage e))]
+         (log/error msg)
+         (throw (ex-info msg {:type "data-request-error" :message msg} (.getCause e)))))))
   ([local]
    (let [grid (first (file/read-json "resources/grid.conus.json"))]
      (get grid "proj"))))
@@ -165,4 +169,43 @@
   (if (number? input)
     (-> input (float) (str))
     (-> input (read-string) (float) (str))))
+
+(defn pixel-groups
+  [injson]
+  (let [juxt_fn (variable-juxt ["px" "py"])]
+    (group-by juxt_fn injson)))
+
+(defn flatten-values
+  "Return a flat list of product values given a collection of hash-maps
+  for every pixel in a chip, [{:pixely 3159045, :pixelx -2114775, :val 6290},...] ...]"
+  [product_value_collection]
+  (try
+    (let [; group product coll by row
+          row_groups (coll-groups product_value_collection [:py]) 
+          ; sort row group values by pixelx ascending 
+          sort-pixelx-fn (fn [i] (hash-map (:py (first i)) (sort-by :px (last i))))
+          sorted-x-vals (map sort-pixelx-fn row_groups)
+          ; sort the rows by the pixely key ascending
+          sorted-y-rows (sort-by (fn [i] (first (keys i))) > sorted-x-vals)
+          ; finally, flatten to a one dimensional list
+          flattened (flatten-vals sorted-y-rows :values)]
+      flattened)
+    (catch Exception e
+      (let [msg (format "problem in util/flatten_values - input count: %s first input: %s last input: %s message: %s"
+                        (count product_value_collection) (first product_value_collection) (last product_value_collection) (.getMessage e))]
+        (log/error msg)
+        (throw (ex-info msg {:type "data-generation-error" :message msg} (.getCause e)))))))
+
+(defmacro log-time
+  "Evaluates expr and prints the time it took.  Returns the value of
+ expr." ; poached from clojure.core
+  [expr description]
+  `(let [start# (. System (nanoTime))
+         ret# ~expr]
+     (log/info (str ~description " took: " (/ (double (- (. System (nanoTime)) start#)) 1000000.0) " msecs"))
+     ret#))
+
+(defmacro with-retry
+  [expr]
+  `(again/with-retries (:retry_strategy config) ~expr))
 
