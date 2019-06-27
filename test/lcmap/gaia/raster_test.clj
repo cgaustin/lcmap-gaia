@@ -36,7 +36,7 @@
   (with-redefs [util/get-projection           (fn [] "wkt-proj")
                 raster/create_blank_tile_tiff (fn [a b c d e] true)
                 storage/ppath                 (fn [a b c d e] (str a b c d e))
-                storage/get_url               (fn [a b] "http://aws.com/foo.tif")
+                storage/get_url               (fn [a b] (format "http://aws.com/%s/%s" a b) )
                 storage/get_json              (fn [i] {"values" [1 2 3 4]})
                 raster/nlcd_filter            (fn [a b c d] [6 7 8 9])
                 raster/add_chip_to_tile       (fn [a b c d e f] true)
@@ -46,7 +46,8 @@
                  :chips [{:cx 1 :cy 2 :value 3} {:cx 1 :cy 3 :value 4}] 
                  :product "change"}
           result (raster/create_raster input)]
-      (is (= result '("LCMAP--001002-20070101--SCTIME.tif" "LCMAP--001002-20070101--SCSTAB.tif" "LCMAP--001002-20070101--SCMQA.tif" "LCMAP--001002-20070101--SCMAG.tif" "LCMAP--001002-20070101--SCLAST.tif"))))))
+      (is (= (first result) "http://aws.com/null/raster/2007//001/002/change/LCMAP--001002-20070101--SCTIME.tif"))
+      (is (= (count result) 5)))))
 
 (deftest map-details-test
   (with-redefs [config {:region "CU" :ccd_ver "V01"}
