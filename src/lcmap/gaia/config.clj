@@ -58,6 +58,7 @@
    :nemo_host          (:nemo-host                environ/env)
    :segments_path      (:segments-path            environ/env)
    :predictions_path   (:predictions-path         environ/env)
+   :observations_path  (:observations-path        environ/env)
    :storage-access-key (:storage-access-key       environ/env)
    :storage-secret-key (:storage-secret-key       environ/env)
    :storage-bucket     (:storage-bucket           environ/env)

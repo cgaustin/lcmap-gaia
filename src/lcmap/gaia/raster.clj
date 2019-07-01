@@ -19,16 +19,16 @@
 (def chips_per_tile_side  50)
 
 (def product_details
-  (hash-map "primary-landcover"    {:abbr "LCPRI"   :type gdal/int8}              
-            "secondary-landcover"  {:abbr "LCSEC"   :type gdal/int8}            
-            "primary-confidence"   {:abbr "LCPCONF" :type gdal/int8}  
-            "secondary-confidence" {:abbr "LCSCONF" :type gdal/int8} 
-            "annual-change"        {:abbr "LCACHG"  :type gdal/int8} 
-            "time-of-change"       {:abbr "SCTIME"  :type gdal/int16}                
-            "magnitude-of-change"  {:abbr "SCMAG"   :type gdal/float32}            
-            "time-since-change"    {:abbr "SCLAST"  :type gdal/int16}              
-            "curve-fit"            {:abbr "SCMQA"   :type gdal/int8}                     
-            "length-of-segment"    {:abbr "SCSTAB"  :type gdal/int16}))
+  (hash-map "primary-landcover"    {:abbr "LCPRI"   :type gdal/int8    :metadata-template "templates/lcpri_template.xml"}              
+            "secondary-landcover"  {:abbr "LCSEC"   :type gdal/int8    :metadata-template "templates/lcsec_template.xml"}            
+            "primary-confidence"   {:abbr "LCPCONF" :type gdal/int8    :metadata-template "templates/lcpriconf_template.xml"}  
+            "secondary-confidence" {:abbr "LCSCONF" :type gdal/int8    :metadata-template "templates/lcsecconf_template.xml"} 
+            "annual-change"        {:abbr "LCACHG"  :type gdal/int8    :metadata-template "templates/lcchg_template.xml"} 
+            "time-of-change"       {:abbr "SCTIME"  :type gdal/int16   :metadata-template "templates/sctime_template.xml"}                
+            "magnitude-of-change"  {:abbr "SCMAG"   :type gdal/float32 :metadata-template "templates/scmag_template.xml"}            
+            "time-since-change"    {:abbr "SCLAST"  :type gdal/int16   :metadata-template "templates/sclast_template.xml"}              
+            "curve-fit"            {:abbr "SCMQA"   :type gdal/int8    :metadata-template "templates/scmqa_template.xml"}                     
+            "length-of-segment"    {:abbr "SCSTAB"  :type gdal/int16   :metadata-template "templates/scstab_template.xml"}))
 
 (defn get-products
   [type]
@@ -133,3 +133,8 @@
         (doseq [raster rasters_detail]
           (log/errorf "deleting incomplete tiff: %s" (:name raster))
           (io/delete-file (:name raster)))))))
+
+(defn rasters-details
+  [tileid date]
+  (let [product_info   (merge (get-products "cover") (get-products "change"))]
+    (map #(map-details tileid % date product) product_info)))

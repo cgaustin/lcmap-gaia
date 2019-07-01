@@ -27,7 +27,8 @@
                  [org.gdal/gdal             "2.2.0"]
                  [mount                     "0.1.12"]
                  [amazonica                 "0.3.139"]
-                 [listora/again             "1.0.0"]]
+                 [listora/again             "1.0.0"]
+                 [comb          "0.1.1"]]
 
   :plugins [[lein-environ "1.1.0"]]
   :profiles {:dev     {:dependencies [[org.clojure/test.check "0.9.0"]]}

@@ -16,6 +16,7 @@
             [lcmap.gaia.config :refer [config]]
             [lcmap.gaia.raster :as raster]
             [lcmap.gaia.storage :as storage]
+            [lcmap.gaia.bundler :as bundler]
             [cheshire.core :as json]))
 
 (defn get-configuration

@@ -93,3 +93,6 @@
   ([tiff_name values x_offset y_offset]
    (update_geotiff tiff_name values x_offset y_offset 100 100)))
 
+(defn generate-cog
+  [intiff output_name]
+  true)
