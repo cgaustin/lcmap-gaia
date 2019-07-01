@@ -89,7 +89,7 @@
     (gdal/update_geotiff name values x_offset y_offset)))
 
 (defn create_raster
-  [{date :date tile :tile tilex :tilex tiley :tiley chips :chips product :product :as all}]
+  [{date :date tile :tile tx :tx ty :ty chips :chips product :product :as all}]
   (let [projection     (util/get-projection)
         product_info   (get-products product)
         rasters_detail (map #(map-details tile % date product) product_info)] ; (:name :prefix :url :data-type :data-product)
@@ -97,7 +97,7 @@
     (try
       ; create empty tiffs
       (doseq [raster rasters_detail]
-        (create_blank_tile_tiff (:name raster) tilex tiley projection (:data-type raster))
+        (create_blank_tile_tiff (:name raster) tx ty projection (:data-type raster))
         (log/infof "created empty %s raster!" (:name raster)))
 
       ; step thru the chips coords and retrieve the data for all products
@@ -111,7 +111,7 @@
         ; for each raster product, add the appropriate data to the correct raster
         (doseq [raster rasters_detail]
           (log/infof "adding cx: %s cy: %s data raster %s" cx cy (:name raster))
-          (add_chip_to_tile (:name raster) (chip_vals (:data-product raster)) tilex tiley cx cy)
+          (add_chip_to_tile (:name raster) (chip_vals (:data-product raster)) tx ty cx cy)
           (log/infof "success for cx: %s cy: %s raster %s" cx cy (:name raster))))
      
       ; push rasters to object store
