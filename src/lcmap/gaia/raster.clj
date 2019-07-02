@@ -136,5 +136,8 @@
 
 (defn rasters-details
   [tileid date]
-  (let [product_info   (merge (get-products "cover") (get-products "change"))]
-    (map #(map-details tileid % date product) product_info)))
+  (let [cover_info     (get-products "cover")
+        change_info    (get-products "change")
+        cover_details  (map #(map-details tileid % date "cover") cover_info)
+        change_details (map #(map-details tileid % date "change") change_info)]
+    (concat cover_details change_details)))
