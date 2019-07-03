@@ -23,16 +23,12 @@
   (hash-map :a "b"))
 
 (defn get-tiffs
-  [tile date]
-  (let [details]
-
-    ; download tiffs based on url in details
-    (doseq [detail details]
-      (log/infof (format "downloading: %s" (:name detail)))
-      (download (:url detail) (:name detail)))
-
-    ; return names
-    details))
+  [details]
+  ; download tiffs based on url in details
+  (doseq [detail details]
+    (log/infof (format "downloading: %s" (:name detail)))
+    (download (:url detail) (:name detail)))
+  details)
 
 (defn generate-layer-metadata
   [details]
@@ -46,7 +42,7 @@
   details)
 
 (defn generate-bundle-metadata
-  [tile date tiff_names] ;LCMAP_CU_003010_2010_20181222_V01_CCDC.xml
+  [tile date name] ;LCMAP_CU_003010_2010_20181222_V01_CCDC.xml
   true)
 
 (defn generate-cog
@@ -69,7 +65,11 @@
   true)
 
 (defn push-bundle
-  [bundle_name metadata_name]
+  [names]
+  (let [bundle (:bundle names)
+        meta   (:bundle-meta names)]
+
+    )
   true)
 
 (defn output-names
@@ -94,24 +94,19 @@
 
     (try
       ; download tiffs
-      (get-tiffs details)
+      (get-tiffs tiff_details)
       ; generate layer metadata
       (generate-layer-metadata tiff_details)
       ; generate observations list
       (generate-observation-list tx ty tile date (:observations output_names))
       ; generate cog
       (generate-cog tiff_details (:cog output_names))
-
-
-    ;; create bundle level metadata
-    ;; (generate-bundle-metadata tile date tiff_names)
-
-
-    ;; assemble bundle
-    ;; (assemble-bundle tile date tiff_names)
-
-    ;; push bundle to _________
-    ;; (push-bundle tile date)
+      ; create bundle level metadata
+      (generate-bundle-metadata tile date (:bundle-meta output_names))
+      ; assemble bundle
+      (assemble-bundle tile date tiff_details output_names)
+      ; store bundle
+      (push-bundle output_names)
 
       (catch Exception e
         (let [msg (format "problem generating tile bundle for tile: %s date: %s, message: %s" tile date (.getMessage e))]
