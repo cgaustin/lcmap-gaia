@@ -1,6 +1,7 @@
 (ns lcmap.gaia.bundler
   (:require [clojure.string :as string]
             [clojure.tools.logging :as log]
+            [clojure.java.io       :as io]
             [comb.template         :as comb]
             [lcmap.gaia.config     :refer [config]]
             [lcmap.gaia.file       :as file]
@@ -9,10 +10,6 @@
             [lcmap.gaia.raster     :as raster]
             [lcmap.gaia.storage    :as storage]
             [lcmap.gaia.util       :as util]))
-
-(defn fill-template
-  [name values]
-  )
 
 (defn download 
   [url name]
@@ -27,7 +24,7 @@
 
 (defn get-tiffs
   [tile date]
-  (let [details (raster/rasters-details tile date)]
+  (let [details]
 
     ; download tiffs based on url in details
     (doseq [detail details]
@@ -49,34 +46,19 @@
   details)
 
 (defn generate-bundle-metadata
-  [details]
-  true)
-
-(defn bundle-name
-  [tile date] ; LCMAP_CU_003010_2010_20181222_V01_CCDC.tar
-  true)
-
-(defn retrieve-tiffs
-  [names]
-  true)
-
-(defn generate-bundle-metadata
   [tile date tiff_names] ;LCMAP_CU_003010_2010_20181222_V01_CCDC.xml
   true)
 
 (defn generate-cog
-  [details] ; https://trac.osgeo.org/gdal/wiki/CloudOptimizedGeoTIFF
+  [details cog_name] ; https://trac.osgeo.org/gdal/wiki/CloudOptimizedGeoTIFF
   (let [names (map :name details) 
-        lcpri_name (first (filter #(re-matches #"(.*)LCPRI(.*)" %) names))
-        cog_name ;LCMAP_CU_003010_2010_20181222_V01_CCDC.tif
-        ]
+        lcpri_name (first (filter #(re-matches #"(.*)LCPRI(.*)" %) names))]
     (gdal/generate-cog lcpri_name cog_name)
-    true))
+    cog_name))
 
 (defn generate-observation-list
-  [tx ty tile date base_name]
-  (let [name    (-> base_name (#(string/split % #"_")) pop (#(remove (fn [i] (= (count i) 8)) %)) (#(string/join "_" %)) (str "_ACQS.txt"))
-        results (nemo/observations tx ty)
+  [tx ty tile date name]
+  (let [results (nemo/observations tx ty)
         dates   (get results "dates")
         newlined (string/join "\n" dates)]
     (spit name newlined)
@@ -90,35 +72,40 @@
   [bundle_name metadata_name]
   true)
 
-(defn output-name
-  [tile date] ;LCMAP_CU_003010_2010_20181222_V01_CCDC
+(defn output-names
+  [tile date]
   (let [region   (:region config)
         ccdver   (:ccd_version config)
         year     (first (string/split date #"-"))
         today    (util/today-as-str) 
-        elements ["LCMAP" region tile year today ccdver "CCDC"]]
-    (string/join "_" elements)))
+        elements ["LCMAP" region tile year today ccdver]
+        base_str (string/join "_" elements)
+        obs_str  (string/replace base_str (re-pattern (str year "_")) "")]
+    (hash-map
+     :observations (str obs_str "ACQS.txt")
+     :bundle       (str base_str "CCDC.tar")
+     :bundle-meta  (str base_str "CCDC.xml")
+     :cog          (str base_str "CCDC.tif"))))
 
 (defn create
   [{tile :tile tx :tx ty :ty date :date}]
-  (let [output-base  (output-name tile date)
-        tiff_details (get-tiffs tile date) ; downloads, returns names
-        metadata     (generate-layer-metadata tiff_details) ; generates populated metadata
-        observations (generate-observations-list tx ty tile date output-base)
-        cog          (generate-cog tiff_details output-base)
-        bundle_name (str output-base ".tar")
-        ]
+  (let [output_names (output-names tile date)
+        tiff_details (raster/rasters-details tile date)]
 
     (try
+      ; download tiffs
+      (get-tiffs details)
+      ; generate layer metadata
+      (generate-layer-metadata tiff_details)
+      ; generate observations list
+      (generate-observation-list tx ty tile date (:observations output_names))
+      ; generate cog
+      (generate-cog tiff_details (:cog output_names))
+
 
     ;; create bundle level metadata
     ;; (generate-bundle-metadata tile date tiff_names)
 
-    ;; generate COG browse
-    ;; (generate-bundle-cog tiff_names)
-
-    ;; generate observation list
-    ;; (generate-observation-list tx ty)
 
     ;; assemble bundle
     ;; (assemble-bundle tile date tiff_names)
