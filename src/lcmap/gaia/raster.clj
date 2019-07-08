@@ -90,13 +90,13 @@
 
 (defn create_raster
   [{date :date tile :tile tx :tx ty :ty chips :chips product :product :as all}]
-  (let [projection     (util/get-projection)
-        product_info   (get-products product)
-        rasters_detail (map #(map-details tile % date product) product_info)] ; (:name :prefix :url :data-type :data-product)
+  (let [projection   (util/get-projection)
+        product_info (get-products product)
+        rasters      (map #(map-details tile % date product) product_info)] ; (:name :prefix :url :data-type :data-product)
 
     (try
       ; create empty tiffs
-      (doseq [raster rasters_detail]
+      (doseq [raster rasters]
         (create_blank_tile_tiff (:name raster) tx ty projection (:data-type raster))
         (log/infof "created empty %s raster!" (:name raster)))
 
@@ -109,27 +109,30 @@
                     chip_vals (fn [i] (nlcd_filter (map #(get % i) chip_data) i cx cy))]]
         
         ; for each raster product, add the appropriate data to the correct raster
-        (doseq [raster rasters_detail]
+        (doseq [raster rasters]
           (log/infof "adding cx: %s cy: %s data raster %s" cx cy (:name raster))
           (add_chip_to_tile (:name raster) (chip_vals (:data-product raster)) tx ty cx cy)
           (log/infof "success for cx: %s cy: %s raster %s" cx cy (:name raster))))
      
       ; push rasters to object store
-      (doseq [raster rasters_detail]
+      (doseq [raster rasters]
         (log/infof "pushing tiffs to object storage: %s" (:name raster))
-        (storage/put_tiff raster (:name raster))
-        (log/infof "deleting local tiff: %s" (:name raster))
-        (io/delete-file (:name raster)))
+        (storage/put_tiff raster (:name raster)))
       
-      (map :url rasters_detail)
+      ; return urls
+      (map :url rasters)
 
       (catch Exception e
-        (let [names (seq (map :name rasters_detail))
+        (let [names (seq (map :name rasters))
               msg (format "problem creating rasters %s: %s" names (.getMessage e))]
           (log/error msg)
           (throw (ex-info msg {:type "data-generation-error" :message msg} (.getCause e)))))
 
       (finally
-        (doseq [raster rasters_detail]
-          (log/errorf "deleting incomplete tiff: %s" (:name raster))
-          (io/delete-file (:name raster)))))))
+        (doseq [raster rasters
+                :let [name (:name raster)]]
+          (log/infof "attempting to delete tiff: %s" name)
+          (try
+            (io/delete-file name)
+            (catch java.io.IOException e
+              (log/errorf "%s not found" name))))))))
