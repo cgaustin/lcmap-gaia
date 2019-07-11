@@ -118,7 +118,7 @@
                             :sday (util/to-ordinal "1990-04-27") 
                             :eday (util/to-ordinal "2000-06-11")  
                             :bday (util/to-ordinal "2000-06-11") 
-                            :growth true
+                            :growth false
                             :decline false
                             :chprob 1.0
                             :probabilities [{"sday" "1990-04-27", "pday" "1998-07-01"} {"sday" "1990-04-27" "pday" "2001-07-01"}]
@@ -146,21 +146,14 @@
     ; make query_date less than 724514
     (let [input (merge first_pixel {:date 724114})]
       (is (= (:ag (:lc_map config))
-             (cover-products/landcover input 0)))
-      ; query date precedes first segment start date
-      (is (= (:lc_insuff (:lc_defaults config))
-             (cover-products/landcover input 0 (merge config {:fill_begin false})))))
+             (cover-products/landcover input 0))))
 
     ; query date follows last segment end date and fill_end is true
     ; first_segment eday 736594
     ; (:fill_end config) defaults true
     (let [input (merge first_pixel {:date 736894})]
       (is (= (:ag (:lc_map config))
-             (cover-products/landcover input 0)))
-
-      ; query date follows last segment end date and fill_end is false
-      (is (= (:lc_insuff (:lc_defaults config))
-             (cover-products/landcover input 0 (merge config {:fill_end false})))))
+             (cover-products/landcover input 0))))
 
     ; query date falls between a segments start and end dates
     ; sday 724514, eday 736594
@@ -196,9 +189,9 @@
       (is (= (:ag (:lc_map config))
              (cover-products/landcover input 0 mod_cfg)))
 
-      ; as a last resort return lc_inbtw configuration value
-      (is (= (:lc_inbtw config)
-             (cover-products/landcover input 0 (merge mod_cfg {:fill_difflc false})))))
+      ; pixel is unclassifiable, throw and exception!  clojure.lang.ExceptionInfo: problem calculating landcover with pixel
+      (is (thrown-with-msg? Exception #"problem calculating landcover" 
+                            (cover-products/landcover input 0 (merge mod_cfg {:fill_difflc false})))))
 
     ; annual-change product test
     (is (= (:ag (:lc_map config)) (cover-products/change first_pixel)))))
@@ -236,7 +229,7 @@
 
     ;; ; query date falls between a segments start date and end date and growth is true
     (let [input (merge first_pixel {:date 727514})] ; first_pixel growth is true
-      (is (= (:lcc_growth (:lc_defaults config))
+      (is (= 1 ;(:lcc_growth (:lc_defaults config))
              (cover-products/confidence input 0))))
 
     ; query date falls between a segments start date and end date and decline is true

@@ -72,32 +72,48 @@
         mean_fn (fn [i] (util/mean (map #(nth % i) probabilities)))]
     (map mean_fn indexes)))
 
+(defn class-details
+  [predictions query_date rank burn_ratio]
+  (let [first_class (get-class (get (first predictions) "prob"))
+        last_class  (get-class (get (last predictions) "prob"))
+        grass (:grass (:lc_map config))
+        tree  (:tree  (:lc_map config))
+        first_forest_date (util/to-ordinal (first-date-of-class predictions tree))   
+        first_grass_date  (util/to-ordinal (first-date-of-class predictions grass))    
+        growth (and (> burn_ratio 0.05) (= grass first_class) (= tree last_class))
+        decline (and (< burn_ratio -0.05) (= tree first_class) (= grass last_class))
+        probabilities (mean-probabilities predictions)
+        class (get-class probabilities rank)]
+    (hash-map
+     :first_class first_class
+     :last_class  last_class
+     :first_forest_date first_forest_date
+     :first_grass_date first_grass_date
+     :mean_probabilities probabilities
+     :growth growth
+     :decline decline
+     :class class)))
+
 (defn classify
   "Return the classification value for a single segment given a query_day and rank"
   [predictions query_date rank burn_ratio]
-  (let [first_class (get-class (get (first predictions) "prob")) ; ((comp get-class #(get % "prob") first) predictions) ;(-> predictions (first) (:prob) (get-class))
-        last_class  (get-class (get (last predictions) "prob")) ;((comp get-class #(get % "prob") last) predictions) ;(-> predictions (last)  (:prob) (get-class))
-        grass (:grass (:lc_map config))
+  (let [grass (:grass (:lc_map config))
         tree  (:tree  (:lc_map config))
-        first_forest_date (util/to-ordinal (first-date-of-class predictions tree))  ; (-> predictions (first-date-of-class tree))   
-        first_grass_date  (util/to-ordinal (first-date-of-class predictions grass))  ; (-> predictions (first-date-of-class grass))    
-        probabilities (mean-probabilities predictions)]
+        details (class-details predictions query_date rank burn_ratio)]
 
     (cond
-     ; burn_ratio > 0.05 and first_class is 'grass' and last is 'forest'
-     (= true (> burn_ratio 0.05) (= grass first_class) (= tree last_class))
-     (if (>= query_date first_forest_date)
+     (:growth details)
+     (if (>= query_date (:first_forest_date details))
        (nth [tree grass] rank)
        (nth [grass tree] rank))
 
-     ; burn_ratio < -0.05 and last class is grass and first class is forest
-     (= true (< burn_ratio -0.05) (= tree first_class) (= grass last_class))
-     (if (>= query_date first_grass_date)
+     (:decline details)
+     (if (>= query_date (:first_grass_date details))
        (nth [grass tree] rank)
        (nth [tree grass] rank))
 
-     :else ; calculate the mean across all probabilities for the segment, classify based on highest probability
-     (get-class probabilities rank))))
+     :else
+     (:class details))))
 
 (defn characterize-segment
   "Return a hash-map characterizing details of the segment"
@@ -112,14 +128,13 @@
         follows_eday      (> query_day eday)
         follows_bday      (>= query_day bday)
         between_eday_bday (<= eday query_day bday)
-        growth  (> burn_ratio 0.05)
-        decline (< burn_ratio -0.05)
         ordinal_sday #(util/to-ordinal (get % "sday"))
         probability_reducer (fn [coll p] (if (= (ordinal_sday p) sday) (conj coll p) coll)) ; if prediction sday == segment sday, keep it
         segment_probabilities (reduce probability_reducer [] probabilities)
         sorted_probabilities  (util/sort-by-key segment_probabilities "pday")
         primary_classification   (classify sorted_probabilities query_day 0 burn_ratio)
-        secondary_classification (classify sorted_probabilities query_day 1 burn_ratio)]
+        secondary_classification (classify sorted_probabilities query_day 1 burn_ratio)
+        class_details (class-details sorted_probabilities query_day 0 burn_ratio)]
     (hash-map :intersects      intersects
               :precedes_sday   precedes_sday
               :follows_eday    follows_eday
@@ -128,8 +143,8 @@
               :sday            sday
               :eday            eday
               :bday            bday
-              :growth          growth
-              :decline         decline
+              :growth          (:growth class_details)
+              :decline         (:decline class_details)
               :chprob          chprob
               :probabilities   sorted_probabilities
               :primary_class   primary_classification
@@ -150,40 +165,33 @@
            class_key           (if (= 0 rank) :primary_class :secondary_class)]
 
        (cond
-         ; query date precedes first segment start date and fill_begin config is true
-         (= true (< query_date first_start_day) (:fill_begin conf))
+         ; query date precedes first segment start date
+         (< query_date first_start_day)
          (class_key (first segments)) ; return value of the first segment
 
-         ; query date precedes first segment start date
-         (= true (< query_date first_start_day))
-         (:lc_insuff (:lc_defaults conf)) ; return lc_insuff value from lc_defaults config
-
-         ; query date follows last segment end date and fill_end config is true
-         (= true (> query_date last_end_day) (:fill_end conf))
+         ; query date follows last segment end date
+         (> query_date last_end_day)
          (class_key (last segments)) ; return value of the last segment
          
-         ; query date follows last segment end date
-         (= true (> query_date last_end_day))
-         (:lc_insuff (:lc_defaults conf)) ; return the lc_insuff value from the lc_defaults config
-
          ; query date falls between a segments start date and end date
          (not (nil? intersected_segment))
          (class_key intersected_segment) ; return the class value for the intercepted model
 
          ; query date falls between segments of same landcover classification and fill_samelc config is true
-         (= true (:fill_samelc conf) (= (class_key (first between_eday_sday)) (class_key (last between_eday_sday))))
+         (and (:fill_samelc conf) (= (class_key (first between_eday_sday)) (class_key (last between_eday_sday))))
          (class_key (last between_eday_sday)) ; return the value from the last model from the pair of models the query date fell between
 
          ; query date falls between one segments break date and the following segments start date and fill_difflc config is true
-         (= true (:fill_difflc conf) (not (map? between_bday_sday)))
+         (and (:fill_difflc conf) (not (map? between_bday_sday)))
          (class_key (last between_bday_sday)) ; return the value from the last model from the pair of models the query date fell between
 
          ; query date falls between a segments end date and break date and fill_difflc config is true
-         (= true (:fill_difflc conf) (not (nil? eday_bday_model)))
+         (and (:fill_difflc conf) (not (nil? eday_bday_model)))
          (class_key eday_bday_model) ; return the value from the model where the query date intersected the end date and break date
 
-         :else ; finally as a last resort return the lc_inbtw value from the configuration
-         (:lc_inbtw conf)))
+         :else ; we need to throw an exception
+         (throw (ex-info (format "Landcover value calculation problem, unclassifiable pixel %s" (:pixelxy characterized_pixel)) 
+                         {:type "data-generation-error"}))))
 
      (catch Exception e
        (product-exception-handler e "landcover" characterized_pixel))))
@@ -218,24 +226,24 @@
            between_bday_sday   (reduce falls-between-bday-sday segments)]
 
        (cond
-        ; query date preceds first segment start date
-        (= true (< query_date first_start_day))
+        ; query date precedes first segment start date
+        (< query_date first_start_day)
         (:lcc_back (:lc_defaults conf)) ; return lcc_back value from lc_defaults config
 
         ; query date follows last segment end date and change prob == 1
-        (= true (> query_date last_end_day) (= 1 (int (:chprob (last segments)))))
+        (and (> query_date last_end_day) (= 1 (int (:chprob (last segments)))))
         (:lcc_afterbr (:lc_defaults conf)) ; return the lcc_afterbr value from the lc_defaults config
 
         ; query date follows last segment end date
-        (= true (> query_date last_end_day))
+        (> query_date last_end_day)
         (:lcc_forwards (:lc_defaults conf)) ; return the lcc_forwards value from the lc_defaults config
 
         ; query date falls between a segments start date and end date and growth is true
-        (= true (not (nil? intersected_segment)) (:growth intersected_segment))
+        (and (not (nil? intersected_segment)) (:growth intersected_segment))
         (:lcc_growth (:lc_defaults conf)) ; return lcc_growth value from lc_defaults config
 
         ; query date falls between a segments start date and end date and decline is true
-        (= true (not (nil? intersected_segment)) (:decline intersected_segment))
+        (and (not (nil? intersected_segment)) (:decline intersected_segment))
         (:lcc_decline (:lc_defaults conf)) ; return lcc_decline value from lc_defaults config
 
         ; query date falls between a segments start date and end date
@@ -243,16 +251,16 @@
         (util/scale-value (nth (get (last (:probabilities intersected_segment)) "prob") rank))
 
         ; query date falls between segments of same landcover classification
-        (= true (= (:primary_class (first between_eday_sday)) (:primary_class (last between_eday_sday))))
+        (= (:primary_class (first between_eday_sday)) (:primary_class (last between_eday_sday)))
         (:lcc_samelc (:lc_defaults conf)) ; return lcc_samelc from lc_defaults config
 
         ; query date falls between segments with different landcover classifications
         (= 2 (count between_eday_sday))
         (:lcc_difflc (:lc_defaults conf)) ; return lcc_difflc from lc_defaults config
 
-        :else ; mapify returns ValueError
-        (:none (:lc_map conf))))
-
+        :else ; we need to throw and exception
+        (throw (ex-info (format "Confidence value calculation problem, pixel %s" (:pixelxy characterized_pixel)) 
+                         {:type "data-generation-error"}))))
      (catch Exception e
        (product-exception-handler e "confidence" characterized_pixel))))
   ([characterized_pixel rank]
