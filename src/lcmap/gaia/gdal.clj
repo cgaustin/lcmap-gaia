@@ -5,6 +5,7 @@
   (:import [org.gdal.gdal gdal]
            [org.gdal.gdal Driver]
            [org.gdal.gdal Dataset]
+           [org.gdal.gdal ColorTable]
            [org.gdal.gdalconst gdalconst]
            [org.gdal.gdalconst gdalconstJNI]))
 
@@ -58,8 +59,15 @@
 (def int16   (gdalconstJNI/GDT_UInt16_get))
 (def float32 (gdalconstJNI/GDT_Float32_get))
 
+(defn create_colortable
+  [value_colors]
+  (let [ct (ColorTable.)]
+    (doseq [vc value_colors]
+      (.SetColorEntry ct (first vc) (last vc)))
+    ct))
+
 (defn create_geotiff
-  [name values ulx uly projection data_type x_size y_size x_offset y_offset]
+  [name values ulx uly projection data_type x_size y_size x_offset y_offset colortable]
   (try
     (let [driver  (gdal/GetDriverByName "GTiff")
           dataset (.Create driver name x_size y_size 1 data_type)
@@ -68,6 +76,8 @@
       (.SetGeoTransform dataset transform)
       (.SetProjection dataset projection)
       (.WriteRaster band x_offset y_offset x_size y_size (float-array values))
+      (when colortable
+        (.SetRasterColorTable band colortable))
       (.delete band)
       (.delete dataset))
     name

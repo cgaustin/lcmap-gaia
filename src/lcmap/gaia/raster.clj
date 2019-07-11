@@ -18,7 +18,42 @@
 (def pixels_per_chip_side 100)
 (def chips_per_tile_side  50)
 
+;; color definitions for landcover geotiffs 
+(def color_nodata    (java.awt.Color.   0   0   0))
+(def color_developed (java.awt.Color. 255  50  50))
+(def color_cropland  (java.awt.Color. 190 140  90))
+(def color_grassland (java.awt.Color. 230 240 210))
+(def color_tree      (java.awt.Color.  28  99  48))
+(def color_water     (java.awt.Color.   0 112 255))
+(def color_wetland   (java.awt.Color. 179 217 255))
+(def color_snow      (java.awt.Color. 255 255 255))
+(def color_barren    (java.awt.Color. 179 174 163))
+(def color_change    (java.awt.Color. 171   0 214))
+
+(def change_vals 
+  "Annual Change product values to identify with color_change defined color."
+  (filter (fn [i] (not (.contains [11 22 33 44 55 66 77 88] i))) (range 10 89)))
+
+(def change_val_map 
+  "Hash-map of change_vals and color_change definition"
+  (zipmap change_vals (repeat (count change_vals) color_change)))
+
+(def color_map
+  "Associate landcover values with the desired colors"
+  (merge 
+   (hash-map (:none    (:lc_map config)) color_nodata
+             (:develop (:lc_map config)) color_developed
+             (:ag      (:lc_map config)) color_cropland
+             (:grass   (:lc_map config)) color_grassland
+             (:tree    (:lc_map config)) color_tree
+             (:water   (:lc_map config)) color_water
+             (:wetland (:lc_map config)) color_wetland
+             (:snow    (:lc_map config)) color_snow
+             (:barren  (:lc_map config)) color_barren)
+   change_val_map))
+
 (def product_details
+  "Associate product name with its official abbreviation and data type"
   (hash-map "primary-landcover"    {:abbr "LCPRI"   :type gdal/int8}              
             "secondary-landcover"  {:abbr "LCSEC"   :type gdal/int8}            
             "primary-confidence"   {:abbr "LCPCONF" :type gdal/int8}  
@@ -31,20 +66,20 @@
             "length-of-segment"    {:abbr "SCSTAB"  :type gdal/int16}))
 
 (defn get-products
+  "Retrieve product details based on type"
   [type]
   (if (= type "cover")
     (filter #(re-matches #"LC(.*)" (:abbr (last %))) product_details)
     (filter #(re-matches #"SC(.*)" (:abbr (last %))) product_details)))
 
 (defn is-landcover
+  "Return True if name is a landcover product"
   [name]
   (let [abbr (:abbr (get product_details name))]
-    (try
-      (some? (re-matches #"LC(.*)" abbr))
-      (catch NullPointerException e
-        false))))
+    (.contains ["LCPRI" "LCSEC" "LCACHG"] abbr)))
 
 (defn map-details
+  "Return attributes of map product"
   [tileid product_info date product]
   (let [grid      (:region config)
         repr_date (string/replace date "-" "")
@@ -68,11 +103,14 @@
     [(int x_offset) (int y_offset)]))
 
 (defn create_blank_tile_tiff
-  [name ulx uly projection data_type]
-  (let [values (repeat (* 5000 5000) 0)]
-    (gdal/create_geotiff name values ulx uly projection data_type 5000 5000 0 0)))
+  "Create empty raster"
+  [name ulx uly projection data_type data_product]
+  (let [values (repeat (* 5000 5000) 0)
+        colortable (if (is-landcover data_product) (gdal/create_colortable color_map) nil)]
+      (gdal/create_geotiff name values ulx uly projection data_type 5000 5000 0 0 colortable)))
 
 (defn nlcd_filter
+  "Mask, and when appropriate, fill, input data based on nlcd layer"
   [indata product cx cy]
   (let [filters (chipmunk/nlcd_filters cx cy)
         mask    (:mask filters)
@@ -84,11 +122,13 @@
       masked)))
 
 (defn add_chip_to_tile
+  "Add chips worth of data to tile raster"
   [name values tile_x tile_y chip_x chip_y]
   (let [[x_offset y_offset] (calc_offset tile_x tile_y chip_x chip_y)]
     (gdal/update_geotiff name values x_offset y_offset)))
 
 (defn create_raster
+  "Create product rasters"
   [{date :date tile :tile tx :tx ty :ty chips :chips product :product :as all}]
   (let [projection   (util/get-projection)
         product_info (get-products product)
@@ -97,7 +137,7 @@
     (try
       ; create empty tiffs
       (doseq [raster rasters]
-        (create_blank_tile_tiff (:name raster) tx ty projection (:data-type raster))
+        (create_blank_tile_tiff (:name raster) tx ty projection (:data-type raster) (:data-product raster))
         (log/infof "created empty %s raster!" (:name raster)))
 
       ; step thru the chips coords and retrieve the data for all products
