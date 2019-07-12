@@ -229,7 +229,7 @@
 
     ;; ; query date falls between a segments start date and end date and growth is true
     (let [input (merge first_pixel {:date 727514})] ; first_pixel growth is true
-      (is (= 1 ;(:lcc_growth (:lc_defaults config))
+      (is (= 82 ;(:lcc_growth (:lc_defaults config))
              (cover-products/confidence input 0))))
 
     ; query date falls between a segments start date and end date and decline is true
@@ -241,7 +241,7 @@
     ; query date falls between a segments start and end date, neither growth nor decline
     (let [mod_pixel (modify_segment {:growth false})
           input (merge mod_pixel {:date 727514})]
-      (is (= 1 (cover-products/confidence input 0))))
+      (is (= 82 (cover-products/confidence input 0))))
 
     ; query date falls between segments of same landcover classification and fill_samelc config is true
     (let [segment1 (merge first_segment {:eday 725000 :intersects false :follows_eday true})
