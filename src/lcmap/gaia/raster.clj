@@ -176,3 +176,11 @@
             (io/delete-file name)
             (catch java.io.IOException e
               (log/errorf "%s not found" name))))))))
+
+(defn rasters-details
+  [tileid date]
+  (let [cover_info     (get-products "cover")
+        change_info    (get-products "change")
+        cover_details  (map #(map-details tileid % date "cover") cover_info)
+        change_details (map #(map-details tileid % date "change") change_info)]
+    (concat cover_details change_details)))
