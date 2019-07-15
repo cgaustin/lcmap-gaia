@@ -248,7 +248,7 @@
 
         ; query date falls between a segments start date and end date
         (and (not (nil? intersected_segment)) (not (empty? (:probabilities intersected_segment))))
-        (-> (get (last (:probabilities intersected_segment)) "prob") sort reverse (nth rank) util/scale-value)
+        (-> (:probabilities intersected_segment) mean-probabilities sort reverse (nth rank) util/scale-value)
 
         ; query date falls between segments of same landcover classification
         (= (:primary_class (first between_eday_sday)) (:primary_class (last between_eday_sday)))
