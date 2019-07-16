@@ -20,7 +20,12 @@
 (defn get-metadata-values
   [detail]
 
-  (hash-map :a "b"))
+  (hash-map :pubdate 2019
+            :endrange 2017 ; last year of observations used
+
+
+
+            ))
 
 (defn get-tiffs
   [details]

@@ -90,8 +90,9 @@
         name (str (string/join "-" elements) ".tif")
         prefix (storage/get-prefix grid date tileid "raster" product)
         url (storage/get_url storage/bucketname (str prefix "/" name))
-        type (:type (last product_info))]
-    {:name name :prefix prefix :url url :data-type type :data-product data_product}))
+        type (:type (last product_info))
+        metadata-template (:metadata-template (last product_info))]
+    {:name name :prefix prefix :url url :data-type type :data-product data_product :metadata-template metadata-template}))
 
 (defn calc_offset
   "Returns pixel offset for UL coordinates of chips"

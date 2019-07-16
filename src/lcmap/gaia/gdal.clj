@@ -1,7 +1,8 @@
 (ns lcmap.gaia.gdal
   (:require [mount.core :as mount]
             [lcmap.gaia.util :as util]
-            [clojure.tools.logging :as log])
+            [clojure.tools.logging :as log]
+            [clojure.java.shell :only [sh]])
   (:import [org.gdal.gdal gdal]
            [org.gdal.gdal Driver]
            [org.gdal.gdal Dataset]
@@ -103,6 +104,16 @@
   ([tiff_name values x_offset y_offset]
    (update_geotiff tiff_name values x_offset y_offset 100 100)))
 
+;```This is how I've done it in the past - replace {} with the tif filename - the {}_tiled_cloud.TIF is your final file:
+;/usr/local/bin/gdal_translate {}.TIF {}_tiled.TIF -co TILED=YES -co COMPRESS=DEFLATE; 
+;/usr/local/bin/gdaladdo -ro -r average {}_tiled.TIF 2 4 8; 
+;/usr/local/bin/gdal_translate {}_tiled.TIF {}_tiled_cloud.TIF -co TILED=YES -co COMPRESS=DEFLATE -co COPY_SRC_OVERVIEWS=YES -co BLOCKXSIZE=512 -co BLOCKYSIZE=512 --config GDAL_TIFF_OVR_BLOCKSIZE 512```
 (defn generate-cog
-  [intiff output_name]
+  [input output]
+  (let [step1 (format "/usr/local/bin/gdal_translate %s %s -co TILED=YES -co COMPRESS=DEFLATE" input output)
+        step2 (format "/usr/local/bin/gdaladdo -ro -r average %s 2 4 8" output)
+        step3 (format "/usr/local/bin/gdal_translate %s %s -co TILED=YES -co COMPRESS=DEFLATE -co COPY_SRC_OVERVIEWS=YES -co BLOCKXSIZE=512 -co BLOCKYSIZE=512 --config GDAL_TIFF_OVR_BLOCKSIZE 512" output output)])
+
+
+
   true)
