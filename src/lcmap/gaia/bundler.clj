@@ -2,6 +2,7 @@
   (:require [clojure.string :as string]
             [clojure.tools.logging :as log]
             [clojure.java.io       :as io]
+            [clojure.java.shell :refer [sh]]
             [comb.template         :as comb]
             [lcmap.gaia.config     :refer [config]]
             [lcmap.gaia.file       :as file]
@@ -27,6 +28,10 @@
 
             ))
 
+(defn get-bundle-values
+  [tile year]
+  (hash-map :foo "bar"))
+
 (defn get-tiffs
   [details]
   ; download tiffs based on url in details
@@ -48,7 +53,11 @@
 
 (defn generate-bundle-metadata
   [tile date name] ;LCMAP_CU_003010_2010_20181222_V01_CCDC.xml
-  true)
+  (let [template (slurp "templates/bundle_template.xml")
+        values (get-bundle-values tile date)
+        metadata (comb/eval template values)]
+    (spit name metadata)
+    name))
 
 (defn generate-cog
   [details cog_name] ; https://trac.osgeo.org/gdal/wiki/CloudOptimizedGeoTIFF
@@ -66,8 +75,18 @@
     name))
 
 (defn assemble-bundle
-  [bundle_name tiff_names metadata_names cog_name observation_name]
-  true)
+  [object_names tiff_names metadata_names]
+  (let [observations (:observations object_names)
+        bundle       (:bundle object_names)
+        meta         (:bundle-meta object_names)
+        cog          (:cog object_names)
+        cmd (flatten ["tar" "-cf" bundle cog meta observations tiff_names metadata_names]) 
+        result (apply sh cmd)]
+    (if (= 0 (:exit result))
+      bundle
+      (let [msg (format "problem creating tarball %s, %s" bundle (:err result))]
+        (log/errorf msg)
+        (throw (ex-info msg {:type "data-generation-error" :message msg}))))))
 
 (defn push-bundle
   [names]
@@ -95,7 +114,10 @@
 (defn create
   [{tile :tile tx :tx ty :ty date :date}]
   (let [output_names (output-names tile date)
-        tiff_details (raster/rasters-details tile date)]
+        tiff_details (raster/rasters-details tile date)
+        tiff_names   (map :name tiff_details)
+        xml_names    (map (fn [i] (string/replace i #".tif" ".xml")) tiff_names)
+        ]
 
     (try
       ; download tiffs
@@ -109,7 +131,7 @@
       ; create bundle level metadata
       (generate-bundle-metadata tile date (:bundle-meta output_names))
       ; assemble bundle
-      (assemble-bundle tile date tiff_details output_names)
+      (assemble-bundle output_names tiff_names xml_names)
       ; store bundle
       (push-bundle output_names)
 
