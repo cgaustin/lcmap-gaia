@@ -226,6 +226,14 @@
            between_bday_sday   (reduce falls-between-bday-sday segments)]
 
        (cond
+        ; first segment wasn't classifiable, and query date falls between segments
+        (and (= 2 (count between_eday_sday)) (empty? (:probabilities (first between_eday_sday))))
+        (:lcc_back (:lc_defaults conf))
+
+        ; last segment wasn't classifiable, and query date falls between segments
+        (and (= 2 (count between_eday_sday)) (empty? (:probabilities (last between_eday_sday))))
+        (:lcc_afterbr (:lc_defaults conf))
+
         ; query date precedes first segment start date
         (< query_date first_start_day)
         (:lcc_back (:lc_defaults conf)) ; return lcc_back value from lc_defaults config
