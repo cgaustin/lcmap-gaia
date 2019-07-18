@@ -5,6 +5,7 @@
             [clojure.string        :as string]
             [clojure.tools.logging :as log]
             [environ.core          :as environ]
+            [clojure.java.io       :as io]
             [java-time             :as jt]
             [org.httpkit.client    :as http]
             [lcmap.gaia.file       :as file]
@@ -214,3 +215,9 @@
   [expr]
   `(again/with-retries (:retry_strategy config) ~expr))
 
+(defn copy-file [source-path dest-path]
+  (io/copy (io/file source-path) (io/file dest-path)))
+
+(defn delete [file]
+  (log/infof (format "deleting: %s" file))
+  (io/delete-file file true))

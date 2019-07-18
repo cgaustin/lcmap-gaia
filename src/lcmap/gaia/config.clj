@@ -63,6 +63,7 @@
    :storage-secret-key (:storage-secret-key       environ/env)
    :storage-bucket     (:storage-bucket           environ/env)
    :storage-endpoint   (or (:storage-endpoint     environ/env) "http://localhost:7480")
+   :storage-location   (or (:storage-location     environ/env) "/tmp")
    :query_day          (or (:query-day            environ/env) "07-01")
    :chipmunk_host      (or (:chipmunk-host        environ/env) "http://localhost:5656")
    :chipmunk_acquired  (or (:chipmunk-acquired    environ/env) "1999-01-01/2002-01-01")

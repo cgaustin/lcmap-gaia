@@ -57,10 +57,10 @@
           date "2007-07-01"
           product_info (raster/get-products product)
           result (raster/map-details tileid (first product_info) date product)]
-      (is (= (keys result) '(:name :prefix :url :data-type :data-product)))
+      (is (= (keys result) '(:name :prefix :url :data-type :data-product :metadata-template)))
       (is (= (:prefix result) "raster/2007/CU/123/456/change"))
-      (is (string/includes? (:name result) "LCMAP-CU-123456-20070701-"))
-      (is (string/includes? (:name result) "-V01-SCTIME.tif")))))
+      (is (string/includes? (:name result) "LCMAP_CU_123456_20070701_"))
+      (is (string/includes? (:name result) "_V01_SCTIME.tif")))))
 
 (deftest product_details_test
   (is (= (keys raster/product_details) 

@@ -23,9 +23,6 @@
 
   (hash-map :pubdate 2019
             :endrange 2017 ; last year of observations used
-
-
-
             ))
 
 (defn get-bundle-values
@@ -91,10 +88,18 @@
 (defn push-bundle
   [names]
   (let [bundle (:bundle names)
-        meta   (:bundle-meta names)]
+        meta   (:bundle-meta names)
+        cog    (:cog names)
+        dest   (str (:storage_location config) "/")]
+    (util/copy-file bundle (str dest bundle))
+    (util/copy-file meta (str dest meta))
+    (util/copy-file cog (str dest cog))
+    (str dest bundle)))
 
-    )
-  true)
+(defn cleanup
+  [names]
+  (doseq [name names]
+    (util/delete name)))
 
 (defn output-names
   [tile date]
@@ -117,7 +122,7 @@
         tiff_details (raster/rasters-details tile date)
         tiff_names   (map :name tiff_details)
         xml_names    (map (fn [i] (string/replace i #".tif" ".xml")) tiff_names)
-        ]
+        all_names    (concat tiff_names (vals output_names))]
 
     (try
       ; download tiffs
@@ -134,6 +139,8 @@
       (assemble-bundle output_names tiff_names xml_names)
       ; store bundle
       (push-bundle output_names)
+      ; cleanup
+      (cleanup all_names)
 
       (catch Exception e
         (let [msg (format "problem generating tile bundle for tile: %s date: %s, message: %s" tile date (.getMessage e))]

@@ -22,6 +22,7 @@ export STORAGE_ENDPOINT="http://localhost:7480"
 export STORAGE_ACCESS_KEY="9876asdrd"
 export STORAGE_SECRET_KEY="13235lkjis"
 export STORAGE_BUCKET="some-ceph-bucket"
+export STORAGE_LOCATION="/data/ccdc"
 export REGION="cu"
 export CCD_VERSION="v01"
 export HTTP_PORT=9876
@@ -33,10 +34,11 @@ docker run -p 9876:${HTTP_PORT} -e NEMO_HOST=${NEMO_HOST} \
                                 -e CHIPMUNK_ACQUIRED=${CHIPMUNK_ACQUIRED} \
                                 -e SEGMENTS_PATH=${SEGMENTS_PATH} \
                                 -e PREDICTIONS_PATH=${PREDICTIONS_PATH} \
-                                -e STORAGE_ENDPOINT=$(STORAGE_ENDPOINT) \
-                                -e STORAGE_ACCESS_KEY=$(STORAGE_ACCESS_KEY) \
-                                -e STORAGE_SECRET_KEY=$(STORAGE_SECRET_KEY) \
-                                -e STORAGE_BUCKET=$(STORAGE_BUCKET) \
+                                -e STORAGE_ENDPOINT=${STORAGE_ENDPOINT} \
+                                -e STORAGE_ACCESS_KEY=${STORAGE_ACCESS_KEY} \
+                                -e STORAGE_SECRET_KEY=${STORAGE_SECRET_KEY} \
+                                -e STORAGE_BUCKET=${STORAGE_BUCKET} \
+                                -e STORAGE_LOCATION=${STORAGE_LOCATION}
                                 -e HTTP_PORT=${HTTP_PORT} \
                                 -e REGION=${REGION} \
                                 -e CCD_VERSION=${CCD_VERSION} \
@@ -57,7 +59,8 @@ Gaia is configured using these environment variables:
 | `STORAGE_ENDPOINT`   | url for object storage service         |
 | `STORAGE_ACCESS_KEY` | access key for object storage service  |
 | `STORAGE_SECRET_KEY` | secret key for object storage service  |
-| `STORAGE_BUCKET`     | name of the object store bucket to use | 
+| `STORAGE_BUCKET`     | name of the object store bucket to use |
+| `STORAGE_LOCATION`   | file system location to place products | 
 | `REGION`             | region abbreviation (cu, ak, hi)       |
 | `CCD_VERSION`        | version of ccd algorithm used to       |
 |                      | generate input data                    |
