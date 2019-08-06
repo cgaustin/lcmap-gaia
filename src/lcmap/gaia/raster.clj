@@ -4,10 +4,7 @@
             [clojure.string        :as string]
             [lcmap.gaia.config     :refer [config]]
             [lcmap.gaia.chipmunk   :as chipmunk]
-            [lcmap.gaia.file       :as file]
             [lcmap.gaia.gdal       :as gdal]
-            [lcmap.gaia.nemo       :as nemo]
-            [lcmap.gaia.change-products :as products]
             [lcmap.gaia.storage    :as storage]
             [lcmap.gaia.util       :as util]))
 
@@ -68,9 +65,8 @@
 (defn get-products
   "Retrieve product details based on type"
   [type]
-  (if (= type "cover")
-    (filter #(re-matches #"LC(.*)" (:abbr (last %))) product_details)
-    (filter #(re-matches #"SC(.*)" (:abbr (last %))) product_details)))
+  (let [pattern (if (= type "cover") #"LC(.*)" #"SC(.*)")]
+    (filter #(re-matches pattern (:abbr (last %))) product_details)))
 
 (defn is-landcover
   "Return True if name is a landcover product"

@@ -18,11 +18,39 @@
         out (io/output-stream name)]
     (io/copy in out)))
 
+(defn ccd_date
+  [x]
+  ; properties on row of segment table
+  true)
+
+(defn training_date
+  [x]
+  ; properties on row of tile table
+  true)
+
+(defn prediction_date
+  [x]
+  ; properties on row of prediction table
+  true)
+
+(defn production_date
+  [x]
+  true)
+
 (defn get-metadata-values
   [detail]
 
-  (hash-map :pubdate 2019
-            :endrange 2017 ; last year of observations used
+  (hash-map :pubdate 2019    ; year published
+            :endrange 2017   ; last year of observations used
+            :westbc          ; bounding coordinates
+            :eastbc
+            :northbc
+            :southbc
+            :processing_date ; the final processing date
+
+
+
+
             ))
 
 (defn get-bundle-values
@@ -75,9 +103,8 @@
   [object_names tiff_names metadata_names]
   (let [observations (:observations object_names)
         bundle       (:bundle object_names)
-        meta         (:bundle-meta object_names)
         cog          (:cog object_names)
-        cmd (flatten ["tar" "-cf" bundle cog meta observations tiff_names metadata_names]) 
+        cmd (flatten ["tar" "-cf" bundle cog observations tiff_names metadata_names]) 
         result (apply sh cmd)]
     (if (= 0 (:exit result))
       bundle
@@ -90,7 +117,7 @@
   (let [bundle (:bundle names)
         meta   (:bundle-meta names)
         cog    (:cog names)
-        dest   (str (:storage_location config) "/")]
+        dest   (str (:storage-location config) "/")]
     (util/copy-file bundle (str dest bundle))
     (util/copy-file meta (str dest meta))
     (util/copy-file cog (str dest cog))
@@ -106,41 +133,54 @@
   (let [region   (:region config)
         ccdver   (:ccd_version config)
         year     (first (string/split date #"-"))
+        year_ptn (re-pattern (str year "_"))
         today    (util/today-as-str) 
         elements ["LCMAP" region tile year today ccdver]
         base_str (string/join "_" elements)
-        obs_str  (string/replace base_str (re-pattern (str year "_")) "")]
+        obs_str  (string/replace base_str year_ptn "")]
     (hash-map
-     :observations (str obs_str "ACQS.txt")
+     :observations (str obs_str  "ACQS.txt")
      :bundle       (str base_str "CCDC.tar")
      :bundle-meta  (str base_str "CCDC.xml")
      :cog          (str base_str "CCDC.tif"))))
 
 (defn create
-  [{tile :tile tx :tx ty :ty date :date}]
+  [{tile :tile tx :tx ty :ty date :date :as all}]
   (let [output_names (output-names tile date)
         tiff_details (raster/rasters-details tile date)
         tiff_names   (map :name tiff_details)
         xml_names    (map (fn [i] (string/replace i #".tif" ".xml")) tiff_names)
         all_names    (concat tiff_names (vals output_names))]
 
+    (log/infof "received request to create bundle with params: %s" all)
+
     (try
       ; download tiffs
+      (log/infof "downloading tiffs for: %s" all)
       (get-tiffs tiff_details)
       ; generate layer metadata
+      (log/infof "generating layer metadata")
       (generate-layer-metadata tiff_details)
       ; generate observations list
+      (log/infof "generating observation list")
       (generate-observation-list tx ty tile date (:observations output_names))
       ; generate cog
+      (log/info "generating COG")
       (generate-cog tiff_details (:cog output_names))
       ; create bundle level metadata
+      (log/infof "generating bundle metadata")
       (generate-bundle-metadata tile date (:bundle-meta output_names))
       ; assemble bundle
+      (log/infof "assembling bundle")
       (assemble-bundle output_names tiff_names xml_names)
       ; store bundle
+      (log/infof "delivering bundle")
       (push-bundle output_names)
       ; cleanup
+      (log/infof "cleaning up files")
       (cleanup all_names)
+
+      (merge all {:status "success" :tar (:bundle output_names)})
 
       (catch Exception e
         (let [msg (format "problem generating tile bundle for tile: %s date: %s, message: %s" tile date (.getMessage e))]

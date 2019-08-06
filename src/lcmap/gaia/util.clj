@@ -216,6 +216,7 @@
   `(again/with-retries (:retry_strategy config) ~expr))
 
 (defn copy-file [source-path dest-path]
+  (log/infof "copying from: %s to %s" source-path dest-path)
   (io/copy (io/file source-path) (io/file dest-path)))
 
 (defn delete [file]
