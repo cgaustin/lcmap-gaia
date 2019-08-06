@@ -5,6 +5,7 @@
             [lcmap.gaia.config :refer [config]]
             [lcmap.gaia.util :as util]
             [cheshire.core :as json]
+            [org.httpkit.client :as http]
             [amazonica.aws.s3 :as s3]
             [java-time :as jt]))
 
@@ -148,6 +149,38 @@
      (get_url bucket filename oneweek)))
   ([filename]
    (get_url [bucketname filename])))
+
+(defn parse_body
+  [http_response]
+  (json/parse-string (:body http_response)))
+
+(defn segments
+  [x y]
+  (let [url (str (:endpoint client-config) (:segments_path config) "/" x "-" y ".json")
+        response (util/log-time @(http/get url) (format "storage/segments request for x %s  y %s" x y)) ]
+    (if (= 200 (:status response))
+      (parse_body response)
+      (do (log/debugf "Error requesting segments data from Nemo - url: %s  response: %s" url response)
+          (throw (ex-info "Error requesting segments data from Nemo" {:type "data-request-error"
+                                                                      :message "non-200 response from nemo for segments data"
+                                                                      :status (:status response) 
+                                                                      :url url}))))))
+
+(defn predictions
+  [x y]
+  (let [url (str (:endpoint client-config) (:predictions_path config) "/" x "-" y ".json")
+        response (util/log-time @(http/get url) (format "storage/predictions request for chip x:%s y:%s " x y))]
+    (if (= 200 (:status response))
+      (parse_body response) 
+      (do (log/debugf "Error requesting predictions data from Nemo - url: %s  response: %s" url response)
+          (throw (ex-info "Error requesting predictions data from Nemo" {:type "data-request-error"
+                                                                         :message "non-200 response from nemo for predictions data"
+                                                                         :status (:status response) 
+                                                                         :url url}))))))
+
+(defn segments-sorted
+  [x y key]
+  (util/sort-by-key (segments x y) key))
 
 (defn init
   "Create bucket in object storage"

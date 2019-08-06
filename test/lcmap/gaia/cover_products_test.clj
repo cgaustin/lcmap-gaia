@@ -8,7 +8,6 @@
             [lcmap.gaia.util     :as util]
             [lcmap.gaia.config   :refer [config]]
             [lcmap.gaia.storage  :as storage]
-            [lcmap.gaia.nemo     :as nemo]
             [lcmap.gaia.test-resources :as tr]))
 
 
@@ -260,8 +259,8 @@
 
 
 (deftest generate-test
-  (with-redefs [nemo/segments-sorted (fn [a b c] (util/sort-by-key tr/segments_json "sday"))
-                nemo/predictions (fn [a b] tr/predictions_json)
+  (with-redefs [storage/segments-sorted (fn [a b c] (util/sort-by-key tr/segments_json "sday"))
+                storage/predictions (fn [a b] tr/predictions_json)
                 storage/put_json (fn [a b] true)]
     (let [params {:dates ["2007-07-01" "2008-07-01"] :cx 111111 :cy 222222 :tile "123456"}
           result (cover-products/generate params)]

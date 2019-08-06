@@ -8,7 +8,6 @@
             [lcmap.gaia.config     :refer [config]]
             [lcmap.gaia.file       :as file]
             [lcmap.gaia.gdal       :as gdal]
-            [lcmap.gaia.nemo       :as nemo]
             [lcmap.gaia.product-specs :as product-specs]
             [lcmap.gaia.storage    :as storage]
             [lcmap.gaia.util       :as util]))
@@ -307,8 +306,8 @@
 (defn generate
   [{dates :dates cx :cx cy :cy tile :tile :as all}]
   (try
-    (let [segments             (util/with-retry (nemo/segments-sorted cx cy "sday")) 
-          predictions          (util/with-retry (nemo/predictions cx cy)) 
+    (let [segments             (util/with-retry (storage/segments-sorted cx cy "sday")) 
+          predictions          (util/with-retry (storage/predictions cx cy)) 
           grouped_segments     (util/pixel-groups segments)
           grouped_predictions  (util/pixel-groups predictions)
           pixel_coords         (keys grouped_segments)
