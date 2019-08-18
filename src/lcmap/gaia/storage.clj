@@ -156,25 +156,25 @@
 
 (defn segments
   [x y]
-  (let [url (str (:endpoint client-config) (:segments_path config) "/" x "-" y ".json")
+  (let [url (str (:endpoint client-config) "/" bucketname (:segments_path config) "/" x "-" y ".json")
         response (util/log-time @(http/get url) (format "storage/segments request for x %s  y %s" x y)) ]
     (if (= 200 (:status response))
       (parse_body response)
-      (do (log/debugf "Error requesting segments data from Nemo - url: %s  response: %s" url response)
-          (throw (ex-info "Error requesting segments data from Nemo" {:type "data-request-error"
-                                                                      :message "non-200 response from nemo for segments data"
+      (do (log/debugf "Error requesting segments data from Ceph - url: %s  response: %s" url response)
+          (throw (ex-info "Error requesting segments data from Ceph" {:type "data-request-error"
+                                                                      :message "non-200 response from Ceph for segments data"
                                                                       :status (:status response) 
                                                                       :url url}))))))
 
 (defn predictions
   [x y]
-  (let [url (str (:endpoint client-config) (:predictions_path config) "/" x "-" y ".json")
+  (let [url (str (:endpoint client-config) "/" bucketname (:predictions_path config) "/" x "-" y ".json")
         response (util/log-time @(http/get url) (format "storage/predictions request for chip x:%s y:%s " x y))]
     (if (= 200 (:status response))
       (parse_body response) 
-      (do (log/debugf "Error requesting predictions data from Nemo - url: %s  response: %s" url response)
-          (throw (ex-info "Error requesting predictions data from Nemo" {:type "data-request-error"
-                                                                         :message "non-200 response from nemo for predictions data"
+      (do (log/debugf "Error requesting predictions data from Ceph - url: %s  response: %s" url response)
+          (throw (ex-info "Error requesting predictions data from Ceph" {:type "data-request-error"
+                                                                         :message "non-200 response from Ceph for predictions data"
                                                                          :status (:status response) 
                                                                          :url url}))))))
 
