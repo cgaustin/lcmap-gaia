@@ -156,8 +156,10 @@
 
 (defn segments
   [x y]
-  (let [url (str (:endpoint client-config) "/" bucketname (:segments_path config) "/" x "-" y ".json")
-        response (util/log-time @(http/get url) (format "storage/segments request for x %s  y %s" x y)) ]
+  (let [ix (int x)
+        iy (int y)
+        url (str (:endpoint client-config) "/" bucketname (:segments_path config) "/" ix "-" iy ".json")
+        response (util/log-time @(http/get url) (format "storage/segments request for x %s  y %s" ix iy)) ]
     (if (= 200 (:status response))
       (parse_body response)
       (do (log/debugf "Error requesting segments data from Ceph - url: %s  response: %s" url response)
@@ -168,8 +170,10 @@
 
 (defn predictions
   [x y]
-  (let [url (str (:endpoint client-config) "/" bucketname (:predictions_path config) "/" x "-" y ".json")
-        response (util/log-time @(http/get url) (format "storage/predictions request for chip x:%s y:%s " x y))]
+  (let [ix (int x)
+        iy (int y)
+        url (str (:endpoint client-config) "/" bucketname (:predictions_path config) "/" ix "-" iy ".json")
+        response (util/log-time @(http/get url) (format "storage/predictions request for chip x:%s y:%s " ix iy))]
     (if (= 200 (:status response))
       (parse_body response) 
       (do (log/debugf "Error requesting predictions data from Ceph - url: %s  response: %s" url response)
