@@ -237,8 +237,10 @@
         (< query_date first_start_day)
         (:lcc_back (:lc_defaults conf)) ; return lcc_back value from lc_defaults config
 
-        ; query date follows last segment end date and change prob == 1
-        (and (> query_date last_end_day) (= 1 (int (:chprob (last segments)))))
+        ; query date follows last segment end date and either change prob == 1 or last segment has no predictions
+        (and (> query_date last_end_day) 
+             (or (= 1 (int (:chprob (last segments))))
+                 (empty? (:probabilities (last segments)))))
         (:lcc_afterbr (:lc_defaults conf)) ; return the lcc_afterbr value from the lc_defaults config
 
         ; query date follows last segment end date

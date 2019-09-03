@@ -65,6 +65,10 @@
   [ordinaldate]
   (-> ordinaldate inc ordinal-to-javatime str))
 
+(defn todays-date
+  "Return todays date as a string"
+  (str (jt/local-date)))
+
 (defn coll-groups
   "Group collection of hash maps by shared keys values"
   [coll keys]
