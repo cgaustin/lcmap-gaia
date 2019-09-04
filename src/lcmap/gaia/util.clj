@@ -67,6 +67,7 @@
 
 (defn todays-date
   "Return todays date as a string"
+  []
   (str (jt/local-date)))
 
 (defn coll-groups
