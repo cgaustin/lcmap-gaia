@@ -151,9 +151,10 @@
 
 (defn landcover
   "Return the landcover value given the segments, probabilities, query_day and rank for a location"
-  ([segments query_date rank conf]
+  ([characterized_segments query_date rank conf]
    (try
-     (let [first_start_day     (:sday (first segments))
+     (let [segments            (filter (fn [i] (not (empty? (:probabilities i)))) characterized_segments) 
+           first_start_day     (:sday (first segments))
            last_end_day        (:eday (last segments))
            intersected_segment (first (filter :intersects segments))
            eday_bday_model     (first (filter :btw_eday_bday segments))
@@ -191,7 +192,7 @@
                          {:type "data-generation-error"}))))
 
      (catch Exception e
-       (product-exception-handler e "landcover" segments))))
+       (product-exception-handler e "landcover" characterized_segments))))
   ([characterized_pixel date rank] ; enable passing in the configuration
    (landcover characterized_pixel date rank config)))
 
@@ -204,9 +205,10 @@
 
 (defn confidence
   "Return the landcover confidence value given the segments, probabilities, query_day and rank for a location"
-  ([segments query_date rank conf]
+  ([characterized_segments query_date rank conf]
    (try
-     (let [[px py]             (:pixelxy segments)
+     (let [segments            (filter (fn [i] (not (empty? (:probabilities i)))) characterized_segments)
+           [px py]             (:pixelxy segments)
            first_start_day     (:sday (first segments))
            last_end_day        (:eday (last segments))
            intersected_segment (first (filter :intersects segments))
@@ -264,7 +266,7 @@
         (throw (ex-info (format "Confidence value calculation problem, pixel %s" (:pixelxy segments)) 
                          {:type "data-generation-error"}))))
      (catch Exception e
-       (product-exception-handler e "confidence" segments))))
+       (product-exception-handler e "confidence" characterized_segments))))
   ([characterized_pixel date rank]
    (confidence characterized_pixel date rank config)))
 
