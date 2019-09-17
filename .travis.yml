@@ -1,0 +1,16 @@
+dist: xenial
+language: clojure
+jdk:
+- openjdk8
+services:
+- docker
+sudo: required
+before_install:
+- sudo apt-get update
+- sudo apt-get install gdal-bin libgdal-dev libgdal-java python-gdal -y
+- tar xf resources/1085415_1976805_predictions.tar.gz
+- mv 1085415_1976805_predictions.json resources/
+- lein deps 
+- lein test
+after_success:
+- "./bin/build"

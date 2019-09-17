@@ -1,10 +1,13 @@
 (ns lcmap.gaia.gdal
   (:require [mount.core :as mount]
-            [lcmap.gaia.util :as util])
+            [lcmap.gaia.util :as util]
+            [clojure.tools.logging :as log])
   (:import [org.gdal.gdal gdal]
            [org.gdal.gdal Driver]
            [org.gdal.gdal Dataset]
-           [org.gdal.gdalconst gdalconst]))
+           [org.gdal.gdal ColorTable]
+           [org.gdal.gdalconst gdalconst]
+           [org.gdal.gdalconst gdalconstJNI]))
 
 ;; init and state constructs blatantly ripped off from the
 ;; USGS-EROS/lcmap-chipmunk project on GitHub, created by
@@ -48,41 +51,55 @@
 (mount/defstate gdal-init
   :start (init))
 
-(defn geotiff_from_pixel_array
-  [pixel_array output_name]
-  (let [tif_driver  (gdal/GetDriverByName "GTiff")
-        tif_dataset (.Create tif_driver output_name 100 100)
-        ;tif_band    (.GetRasterBand tif_datast 1)
-        ]
-    (.SetGeoTransform tif_dataset ) ;(XULCorner,Cellsize,0,YULCorner,0,-Cellsize)
-                                    ; chipx, 30, 0, chipy, 0, -30
+; https://gdal.org/java/org/gdal/gdalconst/gdalconstConstants.html#GDT_Byte
+; GDT_Byte    (1) : Eight bit unsigned integer
+; GDT_Float32 (6) : Thirty two bit floating point
+; GDT_UInt16  (2) : Sixteen bit unsigned integer
+(def int8    (gdalconstJNI/GDT_Byte_get))
+(def int16   (gdalconstJNI/GDT_UInt16_get))
+(def float32 (gdalconstJNI/GDT_Float32_get))
 
-    ; SetGeoTransform on dataset
-    ; SetProjection on dataset (wkt)
-    ; GetRasterBand
-    ; .WriteRaster band xoff yoff xsize ysize array
+(defn create_colortable
+  [value_colors]
+  (let [ct (ColorTable.)]
+    (doseq [vc value_colors]
+      (.SetColorEntry ct (first vc) (last vc)))
+    ct))
 
-   )
+(defn create_geotiff
+  [name values ulx uly projection data_type x_size y_size x_offset y_offset colortable]
+  (try
+    (let [driver  (gdal/GetDriverByName "GTiff")
+          dataset (.Create driver name x_size y_size 1 data_type)
+          band    (.GetRasterBand dataset 1)
+          transform (double-array [ulx 30 0 uly 0 -30])]
+      (.SetGeoTransform dataset transform)
+      (.SetProjection dataset projection)
+      (.WriteRaster band x_offset y_offset x_size y_size (float-array values))
+      (when colortable
+        (.SetRasterColorTable band colortable))
+      (.delete band)
+      (.delete dataset))
+    name
+    (catch Exception e
+      (let [msg (format "problem in gdal/create_geotiff - name: %s ulx: %s uly: %s projection: %s data_type: %s x_size: %s y_size: %s x_offset: %s y_offset: %s, %s"
+                        name ulx uly projection data_type x_size y_size x_offset y_offset (.getMessage e))]
+        (log/errorf msg)
+        (throw (ex-info msg {:type "data-generation-error"} (.getCause e)))))))
 
-
-
-)
-
-
-;; import org.gdal.gdal Driver
-;; import org.gdal.gdal Dataset
-
-;; create a dataset with Driver/Create
-;; add a layer with Dataset/CreateLayer
-
-;; import 'org.gdal.gdal gdal
-;; (def tiff_driver (gdal/GetDriverByName "GTiff"))
-;; (def tiff_dataset (.Create tiff_driver "foo.tif" 100 100))
-
-
-
-
-;; unverified
-;; (def band (.GetRasterBand tiff_dataset 1))
-;; (.WriteRaster band x x x x x)
+(defn update_geotiff
+  ([name values x_offset y_offset x_size y_size]
+   (try
+     (let [dataset (gdal/Open name 1)
+           band (.GetRasterBand dataset 1)]
+       (.WriteRaster band x_offset y_offset x_size y_size (float-array values))
+       (.delete band)
+       (.delete dataset))
+     (catch Exception e
+       (let [msg (format "problem in gdal/update_geotiff - name: %s x_offset: %s y_offset: %s x_size: %s y_size: %s, %s"
+                         name x_offset y_offset x_size y_size (.getMessage e))]
+         (log/error msg)
+         (throw (ex-info msg {:type "data-generation-error" :message msg} (.getCause e)))))))
+  ([tiff_name values x_offset y_offset]
+   (update_geotiff tiff_name values x_offset y_offset 100 100)))
 
