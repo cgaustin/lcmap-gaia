@@ -46,7 +46,8 @@
                  :chips [{:cx 1 :cy 2 :value 3} {:cx 1 :cy 3 :value 4}] 
                  :product "change"}
           result (raster/create_raster input)]
-      (is (= (first result) "http://aws.com/null/raster/2007//001/002/change/LCMAP--001002-20070101--SCTIME.tif"))
+      (is (string/includes? (first result) "http://aws.com/null/raster/2007//001/002/change/LCMAP--001002-2007-"))
+      (is (string/includes? (first result) "-SCTIME.tif"))
       (is (= (count result) 5)))))
 
 (deftest map-details-test
@@ -59,8 +60,8 @@
           result (raster/map-details tileid (first product_info) date product)]
       (is (= (keys result) '(:name :prefix :url :data-type :data-product :metadata-template)))
       (is (= (:prefix result) "raster/2007/CU/123/456/change"))
-      (is (string/includes? (:name result) "LCMAP_CU_123456_20070701_"))
-      (is (string/includes? (:name result) "_V01_SCTIME.tif")))))
+      (is (string/includes? (:name result) "LCMAP-CU-123456-2007-"))
+      (is (string/includes? (:name result) "-V01-SCTIME.tif")))))
 
 (deftest product_details_test
   (is (= (keys raster/product_details) 

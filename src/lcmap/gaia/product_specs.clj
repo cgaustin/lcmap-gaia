@@ -10,8 +10,11 @@
 (spec/def ::doubles (spec/coll-of double?))
 (spec/def ::coefr (spec/and ::doubles ::count_seven))
 
-(spec/def ::coord_bounds #(or (< -9999999 % -1000000) (> 9999999 % 1000000)))
-(spec/def ::coord (spec/and integer? ::coord_bounds))
+; too restrictive, and dumb
+;(spec/def ::coord_bounds #(or (< -9999999 % -1000000) (> 9999999 % 1000000)))
+;(spec/def ::coord (spec/and integer? ::coord_bounds))
+(spec/def ::coord integer?)
+
 
 (spec/def ::day_fmt #(some? (re-matches #"[0-9]{4}-[0-9]{2}-[0-9]{2}" %)))
 (spec/def ::days (spec/and string? ::day_fmt))

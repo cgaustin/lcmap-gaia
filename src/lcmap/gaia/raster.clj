@@ -78,13 +78,13 @@
   "Return attributes of map product"
   [tileid product_info date product]
   (let [grid      (:region config)
-        repr_date (string/replace date "-" "")
+        repr_year (first (string/split date #"-"))
+        production_date (string/replace (util/todays-date) "-" "") 
         ccd_ver   (:ccd_ver config)
         data_product (first product_info)
         product_abbr (:abbr (last product_info)) 
-        elements ["LCMAP" grid tileid repr_date ccd_ver product_abbr]
-        stored_name (str (string/join "-" elements) ".tif")
-        output_name (string/replace stored_name #"-" "_") ; CEPH prohibits underscores
+        elements ["LCMAP" grid tileid repr_year production_date ccd_ver product_abbr]
+        name (str (string/join "-" elements) ".tif")
         prefix (storage/get-prefix grid date tileid "raster" product)
         url (storage/get_url storage/bucketname (str prefix "/" stored_name))
         type (:type (last product_info))

@@ -6,7 +6,6 @@
             [lcmap.gaia.util     :as util]
             [lcmap.gaia.config   :refer [config]]
             [lcmap.gaia.storage  :as storage]
-            [lcmap.gaia.nemo     :as nemo]
             [lcmap.gaia.test-resources :as tr]))
 
 (def query_date (util/to-ordinal "1996-07-01"))
@@ -79,7 +78,7 @@
    (is (= result 8))))
 
 (deftest generate-test
-  (with-redefs [nemo/segments-sorted (fn [a b c] (util/sort-by-key tr/segments_json "sday"))
+  (with-redefs [storage/segments-sorted (fn [a b c] (util/sort-by-key tr/segments_json "sday"))
                 storage/put_json (fn [a b] true)]
     (let [params {:dates ["2007-07-01" "2008-07-01"] :cx 111111 :cy 222222 :tile "123456"}
           result (change-products/generate params)]

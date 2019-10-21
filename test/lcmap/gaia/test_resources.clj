@@ -1,8 +1,10 @@
 (ns lcmap.gaia.test-resources
   (:require [lcmap.gaia.file :as file]
             [lcmap.gaia.util :as util]
+            [lcmap.gaia.cover-products :as cp]
             [cheshire.core   :as json]
-            [clojure.walk :refer [keywordize-keys stringify-keys]]))
+            [clojure.walk :refer [keywordize-keys stringify-keys]]
+            [clojure.math.combinatorics :as combo]))
 
 (defn ccdc_map
   [inputs]
@@ -36,5 +38,21 @@
 (def first_segments_matching_predictions (merge first_segments_predictions {:predictions [(merge first_prob forest_prob) 
                                                                                           (merge last_prob {"sday" "2001-10-04", "eday" "2017-09-14", "pday" "2017-09-14"} forest_prob)]}))
 
+(defn cover_data_1086765_1975335
+  ([date px py]
+  (let [predictions (json/decode (slurp "resources/1085415_1976805_predictions.json"))
+        segments    (json/decode (slurp "resources/1085415_1976805_segments.json"))
+        grouped_segments     (util/pixel-groups segments)
+        grouped_predictions  (util/pixel-groups predictions)
+        pixel_coords         (keys grouped_segments)
+        pixel_hash-map       #(hash-map % {:segments (get grouped_segments %) :predictions (get grouped_predictions %)})
+        pixel_inputs         (into {} (map pixel_hash-map pixel_coords))
+        ordinal_date         (util/to-ordinal date)
+        pixel_dates      (combo/cartesian-product [ordinal_date] (keys pixel_inputs))
+        characterized    (map #(cp/characterize-inputs (last %) (get pixel_inputs (last %)) (first %)) pixel_dates)
+        pixel_products   (map #(cp/products % ordinal_date) characterized)]
+    (filter (fn [i] (and (= px (:px i)) (= py (:py i)))) pixel_products)))
+  ([]
+   (cover_data_1086765_1975335 "2010-07-01" 1086765 1975335)))
 
 
