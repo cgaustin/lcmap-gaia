@@ -84,7 +84,8 @@
         data_product (first product_info)
         product_abbr (:abbr (last product_info)) 
         elements ["LCMAP" grid tileid repr_year production_date ccd_ver product_abbr]
-        name (str (string/join "-" elements) ".tif")
+        stored_name (str (string/join "-" elements) ".tif")
+        output_name (string/replace stored_name #"-" "_") ; CEPH prohibits underscores
         prefix (storage/get-prefix grid date tileid "raster" product)
         url (storage/get_url storage/bucketname (str prefix "/" stored_name))
         type (:type (last product_info))
