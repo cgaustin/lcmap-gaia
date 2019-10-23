@@ -7,7 +7,8 @@
             [cheshire.core :as json]
             [org.httpkit.client :as http]
             [amazonica.aws.s3 :as s3]
-            [java-time :as jt]))
+            [java-time :as jt])
+  (:import [com.amazonaws.services.s3.model CannedAccessControlList]))
 
 (def bucketname (:storage-bucket config))
 
@@ -140,6 +141,12 @@
   ([jsonpath]
    (get_json bucketname jsonpath)))
 
+(defn set_public_acl
+  ([bucket key]
+   (s3/set-object-acl client-config bucket key CannedAccessControlList/PublicRead))
+  ([key]
+   (set_public_acl bucketname key)))
+
 (defn get_url
   ([bucket filename expire]
    (.toString (s3/generate-presigned-url client-config bucket filename expire)))
@@ -185,6 +192,38 @@
 (defn segments-sorted
   [x y key]
   (util/sort-by-key (segments x y) key))
+
+(defn tif_production_date
+  "Extract production date from full object key name"
+  [keyname]                                    ; raster/2009/CU/029/006/cover/<lcmap_tif>.tif 
+  (let [tif (last (string/split keyname #"/")) ; LCMAP-CU-029006-2009-20190924-V01-LCPRI.tif
+        elements (string/split tif #"-")]      ; ["LCMAP" "CU" "029006" "2009" "20190924" "V01" "LCPRI.tif"]
+     (nth elements 4)))
+
+(defn latest_tif
+  "Return the most recent product by production date"
+  [tifs product_detail]
+  (let [key      (key product_detail)
+        vals     (val product_detail)
+        abbr     (:abbr vals)
+        filtered (filter (fn [i] (string/includes? i abbr)) tifs)
+        sorted   (sort-by tif_production_date filtered)
+        latest   (last sorted)
+        name     (-> latest (string/split #"/") last)]
+    (merge vals {:object-key latest :name name})))
+
+(defn latest_tile_tifs
+  "Return collection of most recently produced tifs from the object store
+  for a given year and tile"
+  [date tile product_details]
+  (let [year   (first (string/split date #"-"))
+        region (:region config)
+        hhh    (subs tile 0 3)
+        vvv    (subs tile 3 6)
+        base   (format "raster/%s/%s/%s/%s/" year region hhh vvv)   ; raster/2009/CU/029/006/
+        prefixes (map (fn [i] (str base i "/")) ["cover" "change"]) ; ["raster/2009/CU/029/006/cover/" ...]
+        objects  (flatten (map (fn [i] (list_bucket_contents bucketname i)) prefixes))] ; collection of object keys
+    (map (fn [i] (latest_tif objects i)) product_details))) ; return hash-map like product_details, but with new :object-key key/value
 
 (defn init
   "Create bucket in object storage"

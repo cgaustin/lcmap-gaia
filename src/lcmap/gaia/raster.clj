@@ -51,15 +51,15 @@
 
 (def product_details
   "Associate product name with its official abbreviation and data type"
-  (hash-map "primary-landcover"    {:abbr "LCPRI"   :type gdal/int8    :metadata-template "templates/lcpri_template.xml"}              
-            "secondary-landcover"  {:abbr "LCSEC"   :type gdal/int8    :metadata-template "templates/lcsec_template.xml"}            
-            "primary-confidence"   {:abbr "LCPCONF" :type gdal/int8    :metadata-template "templates/lcpriconf_template.xml"}  
-            "secondary-confidence" {:abbr "LCSCONF" :type gdal/int8    :metadata-template "templates/lcsecconf_template.xml"} 
-            "annual-change"        {:abbr "LCACHG"  :type gdal/int8    :metadata-template "templates/lcchg_template.xml"} 
-            "time-of-change"       {:abbr "SCTIME"  :type gdal/int16   :metadata-template "templates/sctime_template.xml"}                
-            "magnitude-of-change"  {:abbr "SCMAG"   :type gdal/float32 :metadata-template "templates/scmag_template.xml"}            
-            "time-since-change"    {:abbr "SCLAST"  :type gdal/int16   :metadata-template "templates/sclast_template.xml"}              
-            "curve-fit"            {:abbr "SCMQA"   :type gdal/int8    :metadata-template "templates/scmqa_template.xml"}    
+  (hash-map "primary-landcover"    {:abbr "LCPRI"   :type gdal/int8    :metadata-template "templates/lcpri_template.xml"}
+            "secondary-landcover"  {:abbr "LCSEC"   :type gdal/int8    :metadata-template "templates/lcsec_template.xml"}
+            "primary-confidence"   {:abbr "LCPCONF" :type gdal/int8    :metadata-template "templates/lcpriconf_template.xml"}
+            "secondary-confidence" {:abbr "LCSCONF" :type gdal/int8    :metadata-template "templates/lcsecconf_template.xml"}
+            "annual-change"        {:abbr "LCACHG"  :type gdal/int8    :metadata-template "templates/lcchg_template.xml"}
+            "time-of-change"       {:abbr "SCTIME"  :type gdal/int16   :metadata-template "templates/sctime_template.xml"}
+            "magnitude-of-change"  {:abbr "SCMAG"   :type gdal/float32 :metadata-template "templates/scmag_template.xml"}
+            "time-since-change"    {:abbr "SCLAST"  :type gdal/int16   :metadata-template "templates/sclast_template.xml"}
+            "curve-fit"            {:abbr "SCMQA"   :type gdal/int8    :metadata-template "templates/scmqa_template.xml"}
             "length-of-segment"    {:abbr "SCSTAB"  :type gdal/int16   :metadata-template "templates/scstab_template.xml"}))
 
 (defn get-products

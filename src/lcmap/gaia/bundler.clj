@@ -131,12 +131,12 @@
 (defn output-names
   [tile date]
   (let [region   (:region config)
-        ccdver   (:ccd_version config)
+        ccdver   (:ccd_ver config)
         year     (first (string/split date #"-"))
         year_ptn (re-pattern (str year "_"))
         today    (util/today-as-str) 
         elements ["LCMAP" region tile year today ccdver]
-        base_str (string/join "_" elements)
+        base_str (-> (string/join "_" elements) (str "_")) 
         obs_str  (string/replace base_str year_ptn "")]
     (hash-map
      :observations (str obs_str  "ACQS.txt")
@@ -147,7 +147,7 @@
 (defn create
   [{tile :tile tx :tx ty :ty date :date :as all}]
   (let [output_names (output-names tile date)
-        tiff_details (raster/rasters-details tile date)
+        tiff_details  (storage/latest_tile_tifs tile date raster/product_details)
         tiff_names   (map :name tiff_details)
         xml_names    (map (fn [i] (string/replace i #".tif" ".xml")) tiff_names)
         all_names    (concat tiff_names (vals output_names))]
