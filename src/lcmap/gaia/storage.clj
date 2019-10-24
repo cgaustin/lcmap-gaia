@@ -141,21 +141,18 @@
   ([jsonpath]
    (get_json bucketname jsonpath)))
 
-(defn set_public_acl
-  ([bucket key]
-   (s3/set-object-acl client-config bucket key CannedAccessControlList/PublicRead))
-  ([key]
-   (set_public_acl bucketname key)))
-
 (defn get_url
-  ([bucket filename expire]
-   (.toString (s3/generate-presigned-url client-config bucket filename expire)))
-  ([bucket filename]
-   (let [today (jt/local-date)
-         oneweek (jt/plus today (jt/days 7))]
-     (get_url bucket filename oneweek)))
-  ([filename]
-   (get_url [bucketname filename])))
+  ([bucket keyname]
+     (str (:storage-endpoint config) "/" bucket "/" keyname))
+  ([keyname]
+   (get_url bucketname keyname)))
+
+(defn set_public_acl
+  ([bucket keyname]
+   (s3/set-object-acl client-config bucket keyname CannedAccessControlList/PublicRead)
+   (get_url bucket keyname))
+  ([keyname]
+   (set_public_acl bucketname keyname)))
 
 (defn parse_body
   [http_response]

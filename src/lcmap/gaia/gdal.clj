@@ -1,6 +1,8 @@
 (ns lcmap.gaia.gdal
   (:require [mount.core :as mount]
+            [clojure.java.io :as io]
             [lcmap.gaia.util :as util]
+            [clojure.string :as string]
             [clojure.tools.logging :as log]
             [clojure.java.shell :refer [sh]])
   (:import [org.gdal.gdal gdal]
@@ -103,6 +105,20 @@
          (throw (ex-info msg {:type "data-generation-error" :message msg} (.getCause e)))))))
   ([tiff_name values x_offset y_offset]
    (update_geotiff tiff_name values x_offset y_offset 100 100)))
+
+(defn compress_geotiff
+  [input]
+  (let [command (sh "gdal_translate" input "working.tif" "-co" "COMPRESS=DEFLATE"
+                                                         "-co" "ZLEVEL=9"
+                                                         "-co" "TILED=YES"
+                                                         "-co" "PREDICTOR=2")]
+    (if (= 0 (:exit command))
+      (do ; success
+        (sh "rm" input)
+        (sh "mv" "working.tif" input))
+      (do ; fail 
+        (let [msg (format "Error compressing tif: %s , message: %s" input (:err command))]
+            (throw (ex-info msg {:type "data-generation-error" :message msg})))))))
 
 (defn generate-cog
   [input output]

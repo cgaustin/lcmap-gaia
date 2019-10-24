@@ -61,8 +61,30 @@
   [details]
   ; download tiffs based on url in details
   (doseq [detail details]
-    (log/infof (format "downloading: %s" (:name detail)))
-    (download (:url detail) (:name detail)))
+    (try
+      (log/infof (format "downloading: %s" (:name detail)))
+      (download (:url detail) (:name detail))
+      (catch Exception e
+        (if (string/includes? (.getMessage e) "403 for URL")
+          (do (log/infof (format "received 403 response for %s, setting acl to public read" (:url detail)))
+              (storage/set_public_acl (:object-key detail))
+              (download (:url detail) (:name detail)))
+          (throw (ex-info (format "Error downloading tiff %s" (:url detail)) 
+                          {:type "data-request-error" :message (.getMessage e)} (.getCause e)))))))
+  details)
+
+(defn validate-tifs
+  [details]
+  (doseq [detail details]
+    (let [name (:name detail)
+          file (io/file name)
+          size (.length file)
+          threshold 20000000]
+
+      (if (> size threshold)
+        (do (log/infof (format "%s size is %s, and greater than %s, attempting to compress" name size threshold))
+            (gdal/compress_geotiff name))
+        (log/infof (format "%s appears compressed" name)))))
   details)
 
 (defn generate-layer-metadata
@@ -72,8 +94,7 @@
                 output (string/replace (:name detail) #".tif" ".xml") ; calc output name
                 values (get-metadata-values detail)                   ; calc sub values
                 metadata (comb/eval template values)]]                ; sub in values ;(comb/eval "Hello <%= name %>" {:name "Alice"})
-    ; write out file
-    (spit output metadata))
+    (spit output metadata))                                           ; write out file
   details)
 
 (defn generate-bundle-metadata
@@ -158,6 +179,9 @@
       ; download tiffs
       (log/infof "downloading tiffs for: %s" all)
       (get-tiffs tiff_details)
+      ; validate tif compression
+      (log/infof "validating tiff compression")
+      (validate-tifs tiff_details)
       ; generate layer metadata
       (log/infof "generating layer metadata")
       (generate-layer-metadata tiff_details)
