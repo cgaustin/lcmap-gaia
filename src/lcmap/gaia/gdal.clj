@@ -5,7 +5,8 @@
             [clojure.string :as string]
             [clojure.tools.logging :as log]
             [clojure.java.shell :refer [sh]])
-  (:import [org.gdal.gdal gdal]
+  (:import [java.util Vector]
+           [org.gdal.gdal gdal]
            [org.gdal.gdal Driver]
            [org.gdal.gdal Dataset]
            [org.gdal.gdal ColorTable]
@@ -73,7 +74,9 @@
   [name values ulx uly projection data_type x_size y_size x_offset y_offset colortable]
   (try
     (let [driver  (gdal/GetDriverByName "GTiff")
-          dataset (.Create driver name x_size y_size 1 data_type)
+          options (Vector. 4)
+          __add__ (.addAll options ["COMPRESS=DEFLATE" "ZLEVEL=9" "TILED=YES" "PREDICTOR=2"])
+          dataset (.Create driver name x_size y_size 1 data_type options)
           band    (.GetRasterBand dataset 1)
           transform (double-array [ulx 30 0 uly 0 -30])]
       (.SetGeoTransform dataset transform)

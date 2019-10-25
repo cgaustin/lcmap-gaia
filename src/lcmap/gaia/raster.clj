@@ -154,9 +154,9 @@
           (log/infof "success for cx: %s cy: %s raster %s" cx cy (:name raster))))
      
       ; push rasters to object store
-      (doseq [raster rasters]
-        (log/infof "pushing tiffs to object storage: %s" (:name raster))
-        (storage/put_tiff raster (:name raster)))
+      ;; (doseq [raster rasters]
+      ;;   (log/infof "pushing tiffs to object storage: %s" (:name raster))
+      ;;   (storage/put_tiff raster (:name raster)))
       
       ; return urls
       (map :url rasters)
@@ -172,7 +172,8 @@
                 :let [name (:name raster)]]
           (log/infof "attempting to delete tiff: %s" name)
           (try
-            (io/delete-file name)
+            ;(io/delete-file name)
+            (prn name)
             (catch java.io.IOException e
               (log/errorf "%s not found" name))))))))
 

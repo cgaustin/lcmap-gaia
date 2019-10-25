@@ -98,8 +98,9 @@
      (let [javafile (java.io.File. filelocation)
            content-length (.length javafile)
            keyname (str (:prefix filepath) "/" (:name filepath))
-           metadata {:content-length content-length :content-type "image/tiff"}]
-       (s3/put-object client-config :bucket-name bucket :key keyname  :file javafile :metadata metadata)
+           metadata {:content-length content-length :content-type "image/tiff"}
+           acl {:grant-permission ["AllUsers" "Read"]}]
+       (s3/put-object client-config :bucket-name bucket :key keyname  :file javafile :metadata metadata :access-control-list acl)
        true)
      (catch Exception e
        (let [keyname (str (:prefix filepath) "/" (:name filepath))
