@@ -1,10 +1,12 @@
 (ns lcmap.gaia.gdal
-  (:require [mount.core :as mount]
+  (:require [cheshire.core :as json]
+            [mount.core :as mount]
             [clojure.java.io :as io]
             [lcmap.gaia.util :as util]
             [clojure.string :as string]
             [clojure.tools.logging :as log]
-            [clojure.java.shell :refer [sh]])
+            [clojure.java.shell :refer [sh]]
+            [clojure.walk :refer [keywordize-keys]])
   (:import [java.util Vector]
            [org.gdal.gdal gdal]
            [org.gdal.gdal Driver]
@@ -63,6 +65,17 @@
 (def int16   (gdalconstJNI/GDT_UInt16_get))
 (def float32 (gdalconstJNI/GDT_Float32_get))
 
+(defn info
+  [name]
+  (let [output (sh "gdalinfo" "-json" name)]
+    (-> output :out json/decode keywordize-keys)))
+
+(defn compressed?
+  [name]
+  (let [info (info name)
+        compressed (get-in info [:metadata :IMAGE_STRUCTURE :COMPRESSION])]
+    (some? compressed)))
+
 (defn create_colortable
   [value_colors]
   (let [ct (ColorTable.)]
@@ -74,9 +87,7 @@
   [name values ulx uly projection data_type x_size y_size x_offset y_offset colortable]
   (try
     (let [driver  (gdal/GetDriverByName "GTiff")
-          options (Vector. 4)
-          __add__ (.addAll options ["COMPRESS=DEFLATE" "ZLEVEL=9" "TILED=YES" "PREDICTOR=2"])
-          dataset (.Create driver name x_size y_size 1 data_type options)
+          dataset (.Create driver name x_size y_size 1 data_type)
           band    (.GetRasterBand dataset 1)
           transform (double-array [ulx 30 0 uly 0 -30])]
       (.SetGeoTransform dataset transform)

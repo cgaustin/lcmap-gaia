@@ -76,12 +76,8 @@
 (defn validate-tifs
   [details]
   (doseq [detail details]
-    (let [name (:name detail)
-          file (io/file name)
-          size (.length file)
-          threshold 20000000]
-
-      (if (> size threshold)
+    (let [name (:name detail)]
+      (if (gdal/compressed? name)
         (do (log/infof (format "%s size is %s, and greater than %s, attempting to compress" name size threshold))
             (gdal/compress_geotiff name))
         (log/infof (format "%s appears compressed" name)))))
