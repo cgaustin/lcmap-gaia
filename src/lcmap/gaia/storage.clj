@@ -142,14 +142,10 @@
    (get_json bucketname jsonpath)))
 
 (defn get_url
-  ([bucket filename expire]
-   (.toString (s3/generate-presigned-url client-config bucket filename expire)))
-  ([bucket filename]
-   (let [today (jt/local-date)
-         oneweek (jt/plus today (jt/days 7))]
-     (get_url bucket filename oneweek)))
-  ([filename]
-   (get_url [bucketname filename])))
+  ([bucket keyname]
+   (str (:storage-endpoint config) "/" bucket "/" keyname))
+  ([keyname]
+   (get_url [bucketname keyname])))
 
 (defn parse_body
   [http_response]

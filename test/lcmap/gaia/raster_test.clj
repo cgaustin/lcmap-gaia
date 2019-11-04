@@ -2,6 +2,7 @@
   (:require [clojure.test        :refer :all]
             [clojure.java.io     :as io]
             [clojure.string      :as string]
+            [clojure.tools.logging :as log]
             [lcmap.gaia.gdal     :as gdal]
             [lcmap.gaia.chipmunk :as chipmunk]
             [lcmap.gaia.storage  :as storage]
@@ -38,10 +39,11 @@
                 storage/ppath                 (fn [a b c d e] (str a b c d e))
                 storage/get_url               (fn [a b] (format "http://aws.com/%s/%s" a b) )
                 storage/get_json              (fn [i] {"values" [1 2 3 4]})
-                raster/nlcd_filter            (fn [a b c d] [6 7 8 9])
+                raster/nlcd_filter            (fn [a b c d e] [6 7 8 9])
                 raster/add_chip_to_tile       (fn [a b c d e f] true)
                 storage/put_tiff              (fn [a b] true)
-                io/delete-file                (fn [i] true)]
+                io/delete-file                (fn [i] true)
+                chipmunk/nlcd_filters         (fn [a b] {:mask [0 0] :values [1 2]})]
     (let [input {:date "2007-01-01" :tile "001002" :tilex 111111 :tiley 222222 
                  :chips [{:cx 1 :cy 2 :value 3} {:cx 1 :cy 3 :value 4}] 
                  :product "change"}
@@ -49,6 +51,22 @@
       (is (string/includes? (first result) "http://aws.com/null/raster/2007//001/002/change/LCMAP--001002-2007-"))
       (is (string/includes? (first result) "-SCTIME.tif"))
       (is (= (count result) 5)))))
+
+(deftest test-create_raster_exception
+  (with-redefs [util/get-projection           (fn [] "wkt-proj")
+                raster/create_blank_tile_tiff (fn [a b c d e f] true)
+                storage/ppath                 (fn [a b c d e] (str a b c d e))
+                storage/get_url               (fn [a b] (format "http://aws.com/%s/%s" a b) )
+                storage/get_json              (fn [i] {"values" [1 2 3 4]})
+                raster/nlcd_filter            (fn [a b c d e] [6 7 8 9])
+                raster/add_chip_to_tile       (fn [a b c d e f] true)
+                chipmunk/nlcd_filters         (fn [a b] {:mask [0 0] :values [1 2]})
+                storage/put_tiff              (fn [a b] (throw (Exception. "exception putting tiff")))
+                io/delete-file                (fn [i] true)]
+    (let [input {:date "2007-01-01" :tile "001002" :tilex 111111 :tiley 222222 
+                 :chips [{:cx 1 :cy 2 :value 3} {:cx 1 :cy 3 :value 4}] 
+                 :product "change"}]
+      (is (thrown-with-msg? Exception #"exception putting tiff" (raster/create_raster input))))))
 
 (deftest map-details-test
   (with-redefs [config {:region "CU" :ccd_ver "V01"}
