@@ -97,8 +97,9 @@
      (let [javafile (java.io.File. filelocation)
            content-length (.length javafile)
            keyname (str (:prefix filepath) "/" (:name filepath))
-           metadata {:content-length content-length :content-type "image/tiff"}]
-       (s3/put-object client-config :bucket-name bucket :key keyname  :file javafile :metadata metadata)
+           metadata {:content-length content-length :content-type "image/tiff"}
+           acl {:grant-permission ["AllUsers" "Read"]}]
+       (s3/put-object client-config :bucket-name bucket :key keyname  :file javafile :metadata metadata :access-control-list acl)
        true)
      (catch Exception e
        (let [keyname (str (:prefix filepath) "/" (:name filepath))
@@ -141,14 +142,10 @@
    (get_json bucketname jsonpath)))
 
 (defn get_url
-  ([bucket filename expire]
-   (.toString (s3/generate-presigned-url client-config bucket filename expire)))
-  ([bucket filename]
-   (let [today (jt/local-date)
-         oneweek (jt/plus today (jt/days 7))]
-     (get_url bucket filename oneweek)))
-  ([filename]
-   (get_url [bucketname filename])))
+  ([bucket keyname]
+   (str (:storage-endpoint config) "/" bucket "/" keyname))
+  ([keyname]
+   (get_url [bucketname keyname])))
 
 (defn parse_body
   [http_response]
