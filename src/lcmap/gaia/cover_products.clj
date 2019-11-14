@@ -151,10 +151,9 @@
 
 (defn landcover
   "Return the landcover value given the segments, probabilities, query_day and rank for a location"
-  ([characterized_segments query_date rank conf]
+  ([segments query_date rank conf]
    (try
-     (let [segments            (filter (fn [i] (not (empty? (:probabilities i)))) characterized_segments) 
-           first_start_day     (:sday (first segments))
+     (let [first_start_day     (:sday (first segments))
            last_end_day        (:eday (last segments))
            intersected_segment (first (filter :intersects segments))
            eday_bday_model     (first (filter :btw_eday_bday segments))
@@ -192,9 +191,9 @@
                          {:type "data-generation-error"}))))
 
      (catch Exception e
-       (product-exception-handler e "landcover" characterized_segments))))
-  ([characterized_pixel date rank] ; enable passing in the configuration
-   (landcover characterized_pixel date rank config)))
+       (product-exception-handler e "landcover" segments))))
+  ([segments date rank] ; enable passing in the configuration
+   (landcover segments date rank config)))
 
 (defn change
   "Return the change in landcover from the provided year, to the previous year"
@@ -205,10 +204,9 @@
 
 (defn confidence
   "Return the landcover confidence value given the segments, probabilities, query_day and rank for a location"
-  ([characterized_segments query_date rank conf]
+  ([segments query_date rank conf]
    (try
-     (let [segments            (filter (fn [i] (not (empty? (:probabilities i)))) characterized_segments)
-           [px py]             (:pixelxy segments)
+     (let [[px py]             (:pixelxy segments)
            first_start_day     (:sday (first segments))
            last_end_day        (:eday (last segments))
            intersected_segment (first (filter :intersects segments))
@@ -266,9 +264,9 @@
         (throw (ex-info (format "Confidence value calculation problem, pixel %s" (:pixelxy segments)) 
                          {:type "data-generation-error"}))))
      (catch Exception e
-       (product-exception-handler e "confidence" characterized_segments))))
-  ([characterized_pixel date rank]
-   (confidence characterized_pixel date rank config)))
+       (product-exception-handler e "confidence" segments))))
+  ([segments date rank]
+   (confidence segments date rank config)))
 
 (defn characterize-inputs
   "Return a hash-map characterizing details of the segment"
@@ -292,15 +290,18 @@
         kw_previous   (keyword (str previous_date))
         current_character  (kw_date characterized_pixel)
         previous_character (kw_previous characterized_pixel)
-        [px py] (:pixelxy characterized_pixel)
-        none    (:none (:lc_map config))
-        nomodel (:lcc_nomodel (:lc_defaults config))
-        good_data            (not (empty? current_character))
-        primary_landcover    (if good_data (landcover  current_character date 0) none)
-        secondary_landcover  (if good_data (landcover  current_character date 1) none)
-        primary_confidence   (if good_data (confidence current_character date 0) nomodel) 
-        secondary_confidence (if good_data (confidence current_character date 1) nomodel)
-        previous_landcover   (if (not (empty? previous_character)) (landcover previous_character previous_date 0) none)
+        [px py]   (:pixelxy characterized_pixel)
+        none      (:none (:lc_map config))
+        nomodel   (:lcc_nomodel (:lc_defaults config))
+        good_data (not (empty? current_character))
+        segments  (filter (fn [i] (not (empty? (:probabilities i)))) current_character)
+        previous_segments (filter (fn [i] (not (empty? (:probabilities i)))) previous_character)
+       
+        primary_landcover    (if good_data (landcover  segments date 0) none)
+        secondary_landcover  (if good_data (landcover  segments date 1) none)
+        primary_confidence   (if good_data (confidence segments date 0) nomodel) 
+        secondary_confidence (if good_data (confidence segments date 1) nomodel)
+        previous_landcover   (if (not (empty? previous_character)) (landcover previous_segments previous_date 0) none)
         annual_change        (if good_data (change primary_landcover previous_landcover) none)]
 
     (hash-map :px px :py py :date date
@@ -313,13 +314,13 @@
 (defn generate
   [{dates :dates cx :cx cy :cy tile :tile :as all}]
   (try
-    (let [segments             (util/with-retry (storage/segments-sorted cx cy "sday")) 
-          predictions          (util/with-retry (storage/predictions cx cy)) 
-          grouped_segments     (util/pixel-groups segments)
-          grouped_predictions  (util/pixel-groups predictions)
-          pixel_coords         (keys grouped_segments)
-          pixel_hash-map       #(hash-map % {:segments (get grouped_segments %) :predictions (get grouped_predictions %)})
-          pixel_inputs         (into {} (map pixel_hash-map pixel_coords))]
+    (let [segments            (util/with-retry (storage/segments-sorted cx cy "sday")) 
+          predictions         (util/with-retry (storage/predictions cx cy)) 
+          grouped_segments    (util/pixel-groups segments)
+          grouped_predictions (util/pixel-groups predictions)
+          pixel_coords        (keys grouped_segments)
+          pixel_hash-map      #(hash-map % {:segments (get grouped_segments %) :predictions (get grouped_predictions %)})
+          pixel_inputs        (into {} (map pixel_hash-map pixel_coords))]
 
       (doseq [date dates]
         (let [ordinal_date     (util/to-ordinal date)
