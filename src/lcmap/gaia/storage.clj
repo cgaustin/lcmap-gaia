@@ -207,8 +207,9 @@
         filtered (filter (fn [i] (string/includes? i abbr)) tifs)
         sorted   (sort-by tif_production_date filtered)
         latest   (last sorted)
-        name     (-> latest (string/split #"/") last)]
-    (merge vals {:object-key latest :name name})))
+        name     (-> latest (string/split #"/") last)
+        url      (get_url latest)]
+    (merge vals {:object-key latest :name name :url url})))
 
 (defn latest_tile_tifs
   "Return collection of most recently produced tifs from the object store
@@ -221,7 +222,20 @@
         base   (format "raster/%s/%s/%s/%s/" year region hhh vvv)   ; raster/2009/CU/029/006/
         prefixes (map (fn [i] (str base i "/")) ["cover" "change"]) ; ["raster/2009/CU/029/006/cover/" ...]
         objects  (flatten (map (fn [i] (list_bucket_contents bucketname i)) prefixes))] ; collection of object keys
-    (map (fn [i] (latest_tif objects i)) product_details))) ; return hash-map like product_details, but with new :object-key key/value
+    (doall (map (fn [i] (latest_tif objects i)) product_details)))) ; return hash-map like product_details, but with new :object-key key/value
+
+(defn chip                                                                                                                            
+  "Return /chip data for a cx cy pair"
+  [cx cy] 
+  (let [url (str (:endpoint client-config) "/" bucketname "/chip/" (int cx) "-" (int cy) ".json")
+        response @(http/get url)]
+    (if (= 200 (:status response))
+      (first (parse_body response))
+      (do (log/debugf "Error requesting chip data from Ceph - url: %s  response: %s" url response)
+          (throw (ex-info "Error requesting chip data from Ceph" {:type "data-request-error"
+                                                                  :message "non-200 response from Ceph for chip data"
+                                                                  :status (:status response) 
+                                                                  :url url}))))))
 
 (defn init
   "Create bucket in object storage"

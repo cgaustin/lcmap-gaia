@@ -42,11 +42,11 @@
 
   (hash-map :pubdate 2019    ; year published
             :endrange 2017   ; last year of observations used
-            :westbc          ; bounding coordinates
-            :eastbc
-            :northbc
-            :southbc
-            :processing_date ; the final processing date
+            :westbc   111       ; bounding coordinates
+            :eastbc   222
+            :northbc  333
+            :southbc  444
+            :processing_date 555 ; the final processing date
 
 
 
@@ -78,9 +78,9 @@
   (doseq [detail details]
     (let [name (:name detail)]
       (if (gdal/compressed? name)
-        (do (log/infof (format "%s size is %s, and greater than %s, attempting to compress" name size threshold))
-            (gdal/compress_geotiff name))
-        (log/infof (format "%s appears compressed" name)))))
+        (log/infof name " looks compressed")
+        (do (log/infof (format "attempting to compress %s" name))
+            (gdal/compress_geotiff name)))))
   details)
 
 (defn generate-layer-metadata
@@ -110,7 +110,7 @@
 
 (defn generate-observation-list
   [tx ty tile date name]
-  (let [results (nemo/observations tx ty)
+  (let [results (storage/chip tx ty)
         dates   (get results "dates")
         newlined (string/join "\n" dates)]
     (spit name newlined)
@@ -164,7 +164,7 @@
 (defn create
   [{tile :tile tx :tx ty :ty date :date :as all}]
   (let [output_names (output-names tile date)
-        tiff_details  (storage/latest_tile_tifs tile date raster/product_details)
+        tiff_details  (storage/latest_tile_tifs date tile raster/product_details)
         tiff_names   (map :name tiff_details)
         xml_names    (map (fn [i] (string/replace i #".tif" ".xml")) tiff_names)
         all_names    (concat tiff_names (vals output_names))]
@@ -194,11 +194,11 @@
       (log/infof "assembling bundle")
       (assemble-bundle output_names tiff_names xml_names)
       ; store bundle
-      (log/infof "delivering bundle")
-      (push-bundle output_names)
+      (log/infof "NOT delivering bundle")
+      ;(push-bundle output_names)
       ; cleanup
-      (log/infof "cleaning up files")
-      (cleanup all_names)
+      (log/infof "NOT cleaning up files")
+      ;(cleanup all_names)
 
       (merge all {:status "success" :tar (:bundle output_names)})
 
