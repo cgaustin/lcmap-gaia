@@ -110,6 +110,17 @@
   ([filepath filelocation]
    (put_tiff bucketname filepath filelocation)))
 
+(defn put-file
+  [keyname filelocation]
+  (let [content_types (hash-map :tiff "image/tiff" :xml "application/xml" :json "application/json")
+        type_keyword (-> filelocation (string/split #"\.") last keyword)
+        javafile (java.io.File. filelocation)
+        content-length (.length javafile)
+        metadata {:content-length content-length :content-type (type_keyword content_types)}
+        acl {:grant-permission ["AllUsers" "Read"]}]
+    (s3/put-object client-config :bucket-name bucketname :key keyname  :file javafile :metadata metadata :access-control-list acl)
+    true))
+
 (defn drop_object
   ([bucket filename]
    (s3/delete-object client-config :bucket-name bucket :key filename))

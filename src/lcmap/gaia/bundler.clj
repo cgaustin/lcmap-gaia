@@ -161,6 +161,14 @@
      :bundle-meta  (str base_str "CCDC.xml")
      :cog          (str base_str "CCDC.tif"))))
 
+(defn persist-metadata
+  [details xml_names]
+  (let [detail (first details)
+        prefix (string/replace (:object-key detail) (:name details) "")]
+
+    )
+)
+
 (defn create
   [{tile :tile tx :tx ty :ty date :date :as all}]
   (let [output_names (output-names tile date)
@@ -196,6 +204,8 @@
       ; store bundle
       (log/infof "NOT delivering bundle")
       ;(push-bundle output_names)
+      (log/infof "pushing generated metadata to storage")
+      (persist-metadata tiff_details xml_names)
       ; cleanup
       (log/infof "NOT cleaning up files")
       ;(cleanup all_names)

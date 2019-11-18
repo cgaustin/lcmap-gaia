@@ -154,11 +154,13 @@
           (log/infof "success for cx: %s cy: %s raster %s" cx cy (:name raster))))
      
       ; push rasters to object store
-      (doseq [raster rasters]
+      (doseq [raster rasters
+              :let [rastername (:name raster)
+                    keyname (str (:prefix raster) "/" rastername)]]
         (log/infof "compressing geotiff prior to persisting in object storage...")
         (gdal/compress_geotiff (:name raster))
         (log/infof "pushing tiffs to object storage: %s" (:name raster))
-        (storage/put_tiff raster (:name raster)))
+        (storage/put-file keyname rastername))
       
       ; return urls
       (map :url rasters)
