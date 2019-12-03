@@ -72,7 +72,7 @@
     (map mean_fn indexes)))
 
 (defn class-details
-  [predictions query_date rank burn_ratio]
+  [predictions query_date burn_ratio]
   (let [first_class (get-class (get (first predictions) "prob"))
         last_class  (get-class (get (last predictions) "prob"))
         grass (:grass (:lc_map config))
@@ -82,23 +82,23 @@
         growth (and (> burn_ratio 0.05) (= grass first_class) (= tree last_class))
         decline (and (< burn_ratio -0.05) (= tree first_class) (= grass last_class))
         probabilities (mean-probabilities predictions)
-        class (get-class probabilities rank)]
-    (hash-map
-     :first_class first_class
-     :last_class  last_class
-     :first_forest_date first_forest_date
-     :first_grass_date first_grass_date
-     :mean_probabilities probabilities
-     :growth growth
-     :decline decline
-     :class class)))
+        primary_class (get-class probabilities 0)
+        secondary_class (get-class probabilities 1)
+        response #(hash-map :first_class first_class
+                            :last_class  last_class
+                            :first_forest_date first_forest_date
+                            :first_grass_date first_grass_date
+                            :mean_probabilities probabilities
+                            :growth growth
+                            :decline decline
+                            :class %)]
+    (hash-map :primary (response primary_class) :secondary (response secondary_class))))
 
 (defn classify
   "Return the classification value for a single segment given a query_day and rank"
-  [predictions query_date rank burn_ratio]
+  [details query_date rank]
   (let [grass (:grass (:lc_map config))
-        tree  (:tree  (:lc_map config))
-        details (class-details predictions query_date rank burn_ratio)]
+        tree  (:tree  (:lc_map config))]
 
     (cond
      (:growth details)
@@ -131,9 +131,9 @@
         probability_reducer (fn [coll p] (if (= (ordinal_sday p) sday) (conj coll p) coll)) ; if prediction sday == segment sday, keep it
         segment_probabilities (reduce probability_reducer [] probabilities)
         sorted_probabilities  (util/sort-by-key segment_probabilities "pday")
-        primary_classification   (classify sorted_probabilities query_day 0 burn_ratio)
-        secondary_classification (classify sorted_probabilities query_day 1 burn_ratio)
-        class_details (class-details sorted_probabilities query_day 0 burn_ratio)]
+        class_details (class-details sorted_probabilities query_day burn_ratio)
+        primary_classification (classify (:primary class_details) query_day 0)
+        secondary_classification (classify (:secondary class_details) query_day 1)]
     (hash-map :intersects      intersects
               :precedes_sday   precedes_sday
               :follows_eday    follows_eday
@@ -142,12 +142,13 @@
               :sday            sday
               :eday            eday
               :bday            bday
-              :growth          (:growth class_details)
-              :decline         (:decline class_details)
+              :growth          (:growth (:primary class_details)) 
+              :decline         (:decline (:primary class_details)) 
               :chprob          chprob
               :probabilities   sorted_probabilities
               :primary_class   primary_classification
               :secondary_class secondary_classification)))
+
 
 (defn landcover
   "Return the landcover value given the segments, probabilities, query_day and rank for a location"
