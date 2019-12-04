@@ -9,6 +9,9 @@
             [amazonica.aws.s3 :as s3]
             [java-time :as jt]))
 
+(set! *warn-on-reflection* true)
+(set! *unchecked-math* :warn-on-boxed)
+
 (def bucketname (:storage-bucket config))
 
 (def client-config
@@ -92,7 +95,7 @@
    (put_json bucketname output_path data)))
 
 (defn put_tiff
-  ([bucket filepath filelocation]
+  ([bucket filepath ^String filelocation]
    (try
      (let [javafile (java.io.File. filelocation)
            content-length (.length javafile)

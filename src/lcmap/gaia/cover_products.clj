@@ -6,11 +6,13 @@
             [clojure.tools.logging :as log]
             [java-time             :as jt]
             [lcmap.gaia.config     :refer [config]]
-            [lcmap.gaia.file       :as file]
             [lcmap.gaia.gdal       :as gdal]
             [lcmap.gaia.product-specs :as product-specs]
             [lcmap.gaia.storage    :as storage]
             [lcmap.gaia.util       :as util]))
+
+(set! *warn-on-reflection* true)
+(set! *unchecked-math* :warn-on-boxed)
 
 (defn product-exception-handler
   [exception product_name pixel]
@@ -32,11 +34,13 @@
 
 (defn normalized-burn-ratio
   "Return the Normalized Burn Ratio for a segment"
-  [model sday eday]
-  (let [niint  (get model "niint")
-        s1int  (get model "s1int")
-        nicoef (first (get model "nicoef"))
-        s1coef (first (get model "s1coef"))
+  [model startday endday]
+  (let [sday (long startday)
+        eday (long endday)
+        niint  (double (get model "niint"))
+        s1int  (double (get model "s1int"))
+        nicoef (double (first (get model "nicoef")))
+        s1coef (double (first (get model "s1coef")))
         nir_start  (+ niint (* sday nicoef))
         nir_end    (+ niint (* eday nicoef))
         swir_start (+ s1int (* sday s1coef))
@@ -49,8 +53,9 @@
  "Returns the class value given a collection of probabilities"
   ([probs rank]
    (try
-     (let [sorted (reverse (sort probs)) 
-           position (.indexOf probs (nth sorted rank))]
+     (let [sorted (reverse (sort probs))
+           ranked (nth sorted rank)
+           position (first (keep-indexed #(if (= %2 ranked) %1) probs))]
        (nth (:lc_list config) position))
      (catch IndexOutOfBoundsException e ; the probs collection is empty
        (:none (:lc_map config)))))      ; return configured value for None
@@ -79,8 +84,8 @@
         tree  (:tree  (:lc_map config))
         first_forest_date (util/to-ordinal (first-date-of-class predictions tree))   
         first_grass_date  (util/to-ordinal (first-date-of-class predictions grass))    
-        growth (and (> burn_ratio 0.05) (= grass first_class) (= tree last_class))
-        decline (and (< burn_ratio -0.05) (= tree first_class) (= grass last_class))
+        growth  (and (> (float burn_ratio) 0.05) (= grass first_class) (= tree last_class))
+        decline (and (< (float burn_ratio) -0.05) (= tree first_class) (= grass last_class))
         probabilities (mean-probabilities predictions)
         class (get-class probabilities rank)]
     (hash-map
@@ -95,19 +100,20 @@
 
 (defn classify
   "Return the classification value for a single segment given a query_day and rank"
-  [predictions query_date rank burn_ratio]
-  (let [grass (:grass (:lc_map config))
+  [predictions qdate rank burn_ratio]
+  (let [query_date (long qdate)
+        grass (:grass (:lc_map config))
         tree  (:tree  (:lc_map config))
         details (class-details predictions query_date rank burn_ratio)]
 
     (cond
      (:growth details)
-     (if (>= query_date (:first_forest_date details))
+     (if (>= query_date (long (:first_forest_date details)))
        (nth [tree grass] rank)
        (nth [grass tree] rank))
 
      (:decline details)
-     (if (>= query_date (:first_grass_date details))
+     (if (>= query_date (long (:first_grass_date details)))
        (nth [grass tree] rank)
        (nth [tree grass] rank))
 
@@ -116,16 +122,17 @@
 
 (defn characterize-segment
   "Return a hash-map characterizing details of the segment"
-  [segment query_day probabilities]
-  (let [sday ((comp util/to-ordinal #(get % "sday")) segment)
-        eday ((comp util/to-ordinal #(get % "eday")) segment)
-        bday ((comp util/to-ordinal #(get % "bday")) segment)
+  [segment qday probabilities]
+  (let [query_day (long qday)
+        sday (-> segment (get "sday") util/to-ordinal)
+        eday (-> segment (get "eday") util/to-ordinal)
+        bday (-> segment (get "bday") util/to-ordinal)
         chprob (get segment "chprob")
         burn_ratio (normalized-burn-ratio segment sday eday)
         intersects        (<= sday query_day eday)
-        precedes_sday     (< query_day sday)
-        follows_eday      (> query_day eday)
-        follows_bday      (>= query_day bday)
+        precedes_sday     (< query_day (long sday))
+        follows_eday      (> query_day (long eday))
+        follows_bday      (>= query_day (long bday))
         between_eday_bday (<= eday query_day bday)
         ordinal_sday #(util/to-ordinal (get % "sday"))
         probability_reducer (fn [coll p] (if (= (ordinal_sday p) sday) (conj coll p) coll)) ; if prediction sday == segment sday, keep it
@@ -151,10 +158,11 @@
 
 (defn landcover
   "Return the landcover value given the segments, probabilities, query_day and rank for a location"
-  ([segments query_date rank conf]
+  ([segments qdate rank conf]
    (try
-     (let [first_start_day     (:sday (first segments))
-           last_end_day        (:eday (last segments))
+     (let [query_date          (long qdate)
+           first_start_day     (-> segments first :sday long)
+           last_end_day        (-> segments last :eday long)
            intersected_segment (first (filter :intersects segments))
            eday_bday_model     (first (filter :btw_eday_bday segments))
            between_eday_sday   (reduce falls-between-eday-sday segments)
@@ -204,11 +212,12 @@
 
 (defn confidence
   "Return the landcover confidence value given the segments, probabilities, query_day and rank for a location"
-  ([segments query_date rank conf]
+  ([segments qdate rank conf]
    (try
-     (let [[px py]             (:pixelxy segments)
-           first_start_day     (:sday (first segments))
-           last_end_day        (:eday (last segments))
+     (let [query_date          (long qdate)
+           [px py]             (:pixelxy segments)
+           first_start_day     (-> segments first :sday long)
+           last_end_day        (-> segments last :eday long)
            intersected_segment (first (filter :intersects segments))
            eday_bday_model     (first (filter :btw_eday_bday segments))
            between_eday_sday   (reduce falls-between-eday-sday segments)
