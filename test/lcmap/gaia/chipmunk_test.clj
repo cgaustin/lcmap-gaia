@@ -3,7 +3,8 @@
   (:import java.util.Base64)
   (:require [clojure.test        :refer :all]
             [cheshire.core       :as json]
-            [lcmap.gaia.chipmunk :as chipmunk]))
+            [lcmap.gaia.chipmunk :as chipmunk]
+            [lcmap.gaia.config   :as config]))
 
 (def nlcd-cx 111111)
 (def nlcd-cy 222222)
@@ -17,26 +18,29 @@
     (json/encode [{"data" enc-vals}])))
 
 (deftest test-chips_url
-  (let [url (chipmunk/chips_url "AUX_NLCD" nlcd-cx nlcd-cy)]
+  (let [url (chipmunk/chips_url "http://localhost:5656" "AUX_NLCD" nlcd-cx nlcd-cy)]
     (is (= url nlcd-url))))
 
 (deftest test-nlcd
-  (with-fake-http [{:url nlcd-url :method :get} {:status 200 :body (nlcd_resp)}]
-    (let [response (chipmunk/nlcd nlcd-cx nlcd-cy)]
-      (is (= response [4 3 0])))))
+  (with-redefs [config/config (merge config/config {:chipmunk_host "http://localhost:5656"})]
+    (with-fake-http [{:url nlcd-url :method :get} {:status 200 :body (nlcd_resp)}]
+      (let [response (chipmunk/nlcd nlcd-cx nlcd-cy)]
+        (is (= response [4 3 0]))))))
 
 (deftest test-binary
   (is (= 1 (chipmunk/binary 55)))
   (is (= 0 (chipmunk/binary 0))))
 
 (deftest test-nlcd_mask
+  (with-redefs [config/config (merge config/config {:chipmunk_host "http://localhost:5656"})]
   (with-fake-http [{:url nlcd-url :method :get} {:status 200 :body (nlcd_resp)}]
     (let [response (chipmunk/nlcd_mask nlcd-cx nlcd-cy)]
       (is (= response nlcd-mask-vals))))
-  (is (= nlcd-mask-vals (chipmunk/nlcd_mask nlcd-vals))))
+  (is (= nlcd-mask-vals (chipmunk/nlcd_mask nlcd-vals)))))
 
 (deftest test-nlcd_filters
+ (with-redefs [config/config (merge config/config {:chipmunk_host "http://localhost:5656"})]
   (with-fake-http [{:url nlcd-url :method :get} {:status 200 :body (nlcd_resp)}]
     (let [response (chipmunk/nlcd_filters nlcd-cx nlcd-cy)]
       (is (= (:values response) [4 3 0]))
-      (is (= (:mask response) nlcd-mask-vals)))))
+      (is (= (:mask response) nlcd-mask-vals))))))
