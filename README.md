@@ -92,6 +92,19 @@ Gaia is configured using these environment variables:
 | `Xms`                | minimum JVM memory                          |
 | `Xmx`                | maximum JVM memory                          |
 
+## Local storage considerations
+
+Docker containers exist under the /var/lib/docker/containers dir on the host system.  
+Temporary files created by lcmap-gaia during raster creation will be written under 
+the container specific location within that directory. 
+
+If you define the $WORK_DIR env variable, and mount a host folder to this location 
+within the container, temporary files will be operated on at this mount point.
+
+For example, say you have some high performance SSD mounted locally at /mnt/mesos/sandbox
+where you'd prefer temp files be placed.  You could mount that local directory to
+/sandbox in your container and define WORK_DIR=/sandbox in your docker run command.
+
 
 ## Running a local Gaia
 
