@@ -48,14 +48,40 @@
             :southbc  444
             :processing_date 555 ; the final processing date
 
-
-
-
             ))
 
 (defn get-bundle-values
   [tile year]
-  (hash-map :foo "bar"))
+  (hash-map :collection "01"
+            :version "1.0.0"
+            :region "cu"
+            :query_date "1994-07-01"
+            :begin_date "1994-01-01"
+            :end_date "1994-12-31"
+            :query_month "07"
+            :bundle_name "LCMAP_CU_029006_1989_20191115_V01_CCDC.tar"
+            :production_date "2020-01-09"
+            :bundle_checksum "999111333444xzys"
+            :coordinate_ul 11
+            :coordinate_ur 22
+            :coordinate_lr 33
+            :coordinate_ll 44
+            :tile_h "019"
+            :tile_v "002"
+            :datum "WGS84"
+            :projection "AEA"
+            :units "meters"
+            :ul_x 11
+            :ul_y 22
+            :lr_x 33
+            :lr_y 44
+            :standard_parallel1 29.500000
+            :standard_parallel2 45.500000
+            :central_meridian -96.000000
+            :origin_latitude 23.000000
+            :false_easting 0.000000
+            :false_northing 0.000000
+            ))
 
 (defn get-tiffs
   [details]
