@@ -55,6 +55,7 @@
 (def config
   {:region             (:region                   environ/env)
    :ccd_ver            (:ccd-version              environ/env)
+   :collection         (or (:collection           environ/env) "01")
    :nemo_host          (:nemo-host                environ/env)
    :segments_path      (:segments-path            environ/env)
    :predictions_path   (:predictions-path         environ/env)

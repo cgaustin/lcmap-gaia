@@ -10,7 +10,8 @@
             [lcmap.gaia.nemo       :as nemo]
             [lcmap.gaia.raster     :as raster]
             [lcmap.gaia.storage    :as storage]
-            [lcmap.gaia.util       :as util]))
+            [lcmap.gaia.util       :as util]
+            [digest                :as digest]))
 
 (defn download 
   [url name]
@@ -50,38 +51,71 @@
 
             ))
 
+(defn first-doy
+  [indate]
+  (let [year (first (string/split indate #"-"))]
+    (string/join "-" [year "01" "01"])))
+
+(defn last-doy
+  [indate]
+  (let [year (first (string/split indate #"-"))]
+    (string/join "-" [year "12" "31"])))
+
+(defn query-month
+  [indate]
+  (second (string/split indate #"-x")))
+
+(defn sha512
+  [filename]
+  (digest/sha-512 (io/as-file filename)))
+
 (defn get-bundle-values
-  [tile year]
-  (hash-map :collection "01"
-            :version "1.0.0"
-            :region "cu"
-            :query_date "1994-07-01"
-            :begin_date "1994-01-01"
-            :end_date "1994-12-31"
-            :query_month "07"
-            :bundle_name "LCMAP_CU_029006_1989_20191115_V01_CCDC.tar"
-            :production_date "2020-01-09"
-            :bundle_checksum "999111333444xzys"
-            :coordinate_ul 11
-            :coordinate_ur 22
-            :coordinate_lr 33
-            :coordinate_ll 44
-            :tile_h "019"
-            :tile_v "002"
-            :datum "WGS84"
-            :projection "AEA"
-            :units "meters"
-            :ul_x 11
-            :ul_y 22
-            :lr_x 33
-            :lr_y 44
-            :standard_parallel1 29.500000
-            :standard_parallel2 45.500000
-            :central_meridian -96.000000
-            :origin_latitude 23.000000
-            :false_easting 0.000000
-            :false_northing 0.000000
-            ))
+  [tile query_date bundle_name tif_name]
+  (let [layer_info (gdal/info tif_name)
+        coord_ul (get-in layer_info [:cornerCoordinates :upperLeft])
+        coord_ur (get-in layer_info [:cornerCoordinates :upperRight])
+        coord_ll (get-in layer_info [:cornerCoordinates :lowerLeft])
+        coord_lr (get-in layer_info [:cornerCoordinates :lowerRight])
+        hhh (subs tile 0 3)
+        vvv (subs tile 3 6)
+        datum (get (re-matches #"(.|\n)*DATUM\[\"(.*)\",(.|\n)*" (get-in layer_info [:coordinateSystem :wkt])) 2)
+        ]
+    (hash-map :collection (:collection config)
+              :version (:ccd_ver config)
+              :region (:region config)
+              :query_date query_date
+              :begin_date (first-doy query_date)
+              :end_date (last-doy query_date)
+              :query_month (query-month query_date)
+              :bundle_name bundle_name
+              :production_date (util/today-as-str)
+              :bundle_checksum (sha512 bundle_name)
+              :coordinate_ul coord_ul
+              :coordinate_ur coord_ur
+              :coordinate_lr coord_lr
+              :coordinate_ll coord_ll
+              :tile_h hhh
+              :tile_v vvv
+              :datum datum
+              :projection "AEA"
+              :units "meters"
+              :ul_x 11
+              :ul_y 22
+              :lr_x 33
+              :lr_y 44
+              :standard_parallel1 29.500000
+              :standard_parallel2 45.500000
+              :central_meridian -96.000000
+              :origin_latitude 23.000000
+              :false_easting 0.000000
+              :false_northing 0.000000
+              )
+
+
+    )
+
+
+)
 
 (defn get-tiffs
   [details]
@@ -120,9 +154,9 @@
   details)
 
 (defn generate-bundle-metadata
-  [tile date name] ;LCMAP_CU_003010_2010_20181222_V01_CCDC.xml
+  [tile date metadata_name bundle_name] ;LCMAP_CU_003010_2010_20181222_V01_CCDC.xml
   (let [template (slurp "templates/bundle_template.xml")
-        values (get-bundle-values tile date)
+        values (get-bundle-values tile date bundle_name)
         metadata (comb/eval template values)]
     (spit name metadata)
     name))
@@ -209,29 +243,38 @@
       ; download tiffs
       (log/infof "downloading tiffs for: %s" all)
       (get-tiffs tiff_details)
+
       ; validate tif compression
       (log/infof "validating tiff compression")
       (validate-tifs tiff_details)
+
       ; generate layer metadata
       (log/infof "generating layer metadata")
       (generate-layer-metadata tiff_details)
+
       ; generate observations list
       (log/infof "generating observation list")
       (generate-observation-list tx ty tile date (:observations output_names))
+
       ; generate cog
       (log/info "generating COG")
       (generate-cog tiff_details (:cog output_names))
-      ; create bundle level metadata
-      (log/infof "generating bundle metadata")
-      (generate-bundle-metadata tile date (:bundle-meta output_names))
+
       ; assemble bundle
       (log/infof "assembling bundle")
       (assemble-bundle output_names tiff_names xml_names)
+
+      ; create bundle level metadata
+      (log/infof "generating bundle metadata")
+      (generate-bundle-metadata tile date (:bundle-meta output_names) (:bundle output_names) (first tif_names))
+
       ; store bundle
       (log/infof "NOT delivering bundle")
+
       ;(push-bundle output_names)
       (log/infof "pushing generated metadata to storage")
       (persist-metadata tiff_details xml_names)
+
       ; cleanup
       (log/infof "NOT cleaning up files")
       ;(cleanup all_names)
