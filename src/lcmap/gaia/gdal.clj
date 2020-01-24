@@ -13,7 +13,10 @@
            [org.gdal.gdal Dataset]
            [org.gdal.gdal ColorTable]
            [org.gdal.gdalconst gdalconst]
-           [org.gdal.gdalconst gdalconstJNI]))
+           [org.gdal.gdalconst gdalconstJNI]
+           [org.gdal.osr SpatialReference]
+           [org.gdal.osr CoordinateTransformation]
+))
 
 ;; init and state constructs blatantly ripped off from the
 ;; USGS-EROS/lcmap-chipmunk project on GitHub, created by
@@ -64,6 +67,16 @@
 (def int8    (gdalconstJNI/GDT_Byte_get))
 (def int16   (gdalconstJNI/GDT_UInt16_get))
 (def float32 (gdalconstJNI/GDT_Float32_get))
+
+(defn geographic-coords
+  [[x y]]
+  (let [proj_wkt (slurp "cu.wkt")
+        geog_wkt (slurp "epsg4326.wkt")
+        proj_ref (SpatialReference. proj_wkt) 
+        geog_ref (SpatialReference. geog_wkt)
+        trns_frm (CoordinateTransformation. proj_ref geog_ref)
+        coords   (.TransformPoint trns_frm proj_ref geog_ref)]
+    (vector (first coords) (second coords))))
 
 (defn info
   [name]

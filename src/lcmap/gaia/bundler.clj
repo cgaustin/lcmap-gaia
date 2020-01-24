@@ -73,13 +73,25 @@
   [tile query_date bundle_name tif_name]
   (let [layer_info (gdal/info tif_name)
         coord_ul (get-in layer_info [:cornerCoordinates :upperLeft])
-        coord_ur (get-in layer_info [:cornerCoordinates :upperRight])
-        coord_ll (get-in layer_info [:cornerCoordinates :lowerLeft])
         coord_lr (get-in layer_info [:cornerCoordinates :lowerRight])
+        coord_ul_converted (gdal/geographic-coords coord_ul)
+        coord_lr_converted (gdal/geographic-coords coord_lr)
+        coord_west (first coord_ul_converted)
+        coord_east (first coord_lr_converted)
+        coord_north (second coord_ul_converted)
+        coord_south (second coord_lr_converted)
         hhh (subs tile 0 3)
         vvv (subs tile 3 6)
-        datum (get (re-matches #"(.|\n)*DATUM\[\"(.*)\",(.|\n)*" (get-in layer_info [:coordinateSystem :wkt])) 2)
-        ]
+        coord_wkt (get-in layer_info [:coordinateSystem :wkt])
+        coord_pattern #(re-pattern (format "(.|\n)*%s\",(.*)\](.|\n)*" %))
+        datum      (get (re-matches #"(.|\n)*DATUM\[\"(.*)\",(.|\n)*" coord_wkt) 2)
+        parallel_1 (get (re-matches (coord_pattern "standard_parallel_1") coord_wkt) 2)
+        parallel_2 (get (re-matches (coord_pattern "standard_parallel_2") coord_wkt) 2)
+        meridian   (get (re-matches (coord_pattern "longitude_of_center") coord_wkt) 2)
+        latitude   (get (re-matches (coord_pattern "latitude_of_center") coord_wkt) 2)
+        easting    (get (re-matches (coord_pattern "false_easting") coord_wkt) 2)
+        northing   (get (re-matches (coord_pattern "false_northing") coord_wkt) 2)]
+
     (hash-map :collection (:collection config)
               :version (:ccd_ver config)
               :region (:region config)
@@ -90,32 +102,25 @@
               :bundle_name bundle_name
               :production_date (util/today-as-str)
               :bundle_checksum (sha512 bundle_name)
-              :coordinate_ul coord_ul
-              :coordinate_ur coord_ur
-              :coordinate_lr coord_lr
-              :coordinate_ll coord_ll
+              :coordinate_west  coord_west
+              :coordinate_east  coord_east
+              :coordinate_north coord_north
+              :coordinate_south coord_south
               :tile_h hhh
               :tile_v vvv
               :datum datum
               :projection "AEA"
               :units "meters"
-              :ul_x 11
-              :ul_y 22
-              :lr_x 33
-              :lr_y 44
-              :standard_parallel1 29.500000
-              :standard_parallel2 45.500000
-              :central_meridian -96.000000
-              :origin_latitude 23.000000
-              :false_easting 0.000000
-              :false_northing 0.000000
-              )
-
-
-    )
-
-
-)
+              :ul_x (first coord_ul)
+              :ul_y (second coord_ul)
+              :lr_x (first coord_lr)
+              :lr_y (second coord_lr)
+              :standard_parallel1 parallel_1
+              :standard_parallel2 parallel_2
+              :central_meridian meridian
+              :origin_latitude latitude
+              :false_easting easting
+              :false_northing northing)))
 
 (defn get-tiffs
   [details]
@@ -266,7 +271,7 @@
 
       ; create bundle level metadata
       (log/infof "generating bundle metadata")
-      (generate-bundle-metadata tile date (:bundle-meta output_names) (:bundle output_names) (first tif_names))
+      (generate-bundle-metadata tile date (:bundle-meta output_names) (:bundle output_names) (first tiff_names))
 
       ; store bundle
       (log/infof "NOT delivering bundle")
