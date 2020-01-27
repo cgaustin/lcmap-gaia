@@ -48,3 +48,13 @@
   (let [values (util/with-retry (nlcd x y)) 
         mask (nlcd_mask values)]
     {:mask mask :values values}))
+
+(defn grid-wkt
+  "Return the projection WKT for the regions grid"
+  []
+  (let [url (str (:chipmunk_host config) "/grid")
+        response @(http/get url)
+        tile_filter #(filter (fn [i] (= "tile" (get i "name"))) %)
+        tile_json (-> response :body json/decode tile_filter first)]
+    (get tile_json "proj")))
+

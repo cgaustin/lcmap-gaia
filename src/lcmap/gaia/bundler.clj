@@ -70,6 +70,7 @@
   (digest/sha-512 (io/as-file filename)))
 
 (defn get-bundle-values
+  "Return metadata values for bundle level metadata"
   [tile query_date bundle_name tif_name]
   (let [layer_info (gdal/info tif_name)
         coord_ul (get-in layer_info [:cornerCoordinates :upperLeft])
@@ -83,7 +84,7 @@
         hhh (subs tile 0 3)
         vvv (subs tile 3 6)
         coord_wkt (get-in layer_info [:coordinateSystem :wkt])
-        coord_pattern #(re-pattern (format "(.|\n)*%s\",(.*)\](.|\n)*" %))
+        coord_pattern #(re-pattern (format "(.|\n)*%s\",(.*)\\](.|\n)*" %))
         datum      (get (re-matches #"(.|\n)*DATUM\[\"(.*)\",(.|\n)*" coord_wkt) 2)
         parallel_1 (get (re-matches (coord_pattern "standard_parallel_1") coord_wkt) 2)
         parallel_2 (get (re-matches (coord_pattern "standard_parallel_2") coord_wkt) 2)

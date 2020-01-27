@@ -3,6 +3,7 @@
             [mount.core :as mount]
             [clojure.java.io :as io]
             [lcmap.gaia.util :as util]
+            [lcmap.gaia.chipmunk :as chipmunk]
             [clojure.string :as string]
             [clojure.tools.logging :as log]
             [clojure.java.shell :refer [sh]]
@@ -69,13 +70,14 @@
 (def float32 (gdalconstJNI/GDT_Float32_get))
 
 (defn geographic-coords
+  "Return the WGS 84 coordinates for the projected coordinate pair"
   [[x y]]
-  (let [proj_wkt (slurp "cu.wkt")
-        geog_wkt (slurp "epsg4326.wkt")
+  (let [proj_wkt (chipmunk/grid-wkt)
         proj_ref (SpatialReference. proj_wkt) 
-        geog_ref (SpatialReference. geog_wkt)
+        geog_ref (SpatialReference.)
+        geog_set (.ImportFromEPSG geog_ref 4326)
         trns_frm (CoordinateTransformation. proj_ref geog_ref)
-        coords   (.TransformPoint trns_frm proj_ref geog_ref)]
+        coords   (.TransformPoint trns_frm x y)]
     (vector (first coords) (second coords))))
 
 (defn info
