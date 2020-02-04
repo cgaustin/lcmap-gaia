@@ -110,15 +110,17 @@
 
 (defn nlcd_filter
   "Mask, and when appropriate, fill, input data based on nlcd layer"
-  [indata product cx cy]
-  (let [filters (chipmunk/nlcd_filters cx cy)
-        mask    (:mask filters)
-        values  (:values filters)
-        fill_fn (fn [input fill] (if (zero? input) fill input))
-        masked  (map * indata mask)]
-    (if (is-landcover product)
-      (map fill_fn masked values)
-      masked)))
+  ([indata product cx cy filters]
+   (let [mask    (:mask filters)
+         values  (:values filters)
+         fill_fn (fn [input fill] (if (zero? input) fill input))
+         masked  (map * indata mask)]
+     (if (is-landcover product)
+       (map fill_fn masked values)
+       masked)))
+  ([indata product cx cy]
+   (let [filters (chipmunk/nlcd_filters cx cy)]
+     (nlcd_filter indata product cx cy filters))))
 
 (defn add_chip_to_tile
   "Add chips worth of data to tile raster"
@@ -131,54 +133,49 @@
   [{date :date tile :tile tx :tx ty :ty chips :chips product :product :as all}]
   (let [projection   (util/get-projection)
         product_info (get-products product)
-        rasters      (map #(map-details tile % date product) product_info)] ; (:name :prefix :url :data-type :data-product)
+        details_fn   #(map-details tile % date product)
+        rasters      (into [] (map details_fn product_info))] ; (:name :prefix :url :data-type :data-product)        
 
     (try
       ; create empty tiffs
-      (doseq [raster rasters]
-        (create_blank_tile_tiff (:name raster) tx ty projection (:data-type raster) (:data-product raster))
-        (log/infof "created empty %s raster!" (:name raster)))
+      (log/infof "creating empty rasters")
+      (doall (map #(create_blank_tile_tiff (:name %) tx ty projection (:data-type %) (:data-product %)) rasters))
 
       ; step thru the chips coords and retrieve the data for all products
+      (log/infof "stepping through chips, adding data to rasters...")
       (doseq [chip chips
               :let [cx (:cx chip)
                     cy (:cy chip)
+                    nlcd_data (chipmunk/nlcd_filters cx cy)
                     chip_path (storage/ppath product cx cy tile date)
                     chip_data (util/with-retry (storage/get_json chip_path))
-                    chip_vals (fn [i] (nlcd_filter (map #(get % i) chip_data) i cx cy))]]
+                    chip_vals (fn [i] (nlcd_filter (map #(get % i) chip_data) i cx cy nlcd_data))]]
         
         ; for each raster product, add the appropriate data to the correct raster
-        (doseq [raster rasters]
-          (log/infof "adding cx: %s cy: %s data raster %s" cx cy (:name raster))
-          (add_chip_to_tile (:name raster) (chip_vals (:data-product raster)) tx ty cx cy)
-          (log/infof "success for cx: %s cy: %s raster %s" cx cy (:name raster))))
+        (log/infof "adding cx: %s cy: %s data to rasters" cx cy)
+        (doall (map #(add_chip_to_tile (:name %) (chip_vals (:data-product %)) tx ty cx cy) rasters))
+        (log/infof "success for cx: %s cy: %s" cx cy))
+
+      (log/infof "done adding chip data to rasters!")
      
       ; push rasters to object store
-      (doseq [raster rasters
-              :let [rastername (:name raster)
-                    keyname (str (:prefix raster) "/" rastername)]]
-        (log/infof "compressing geotiff prior to persisting in object storage...")
-        (gdal/compress_geotiff (:name raster))
-        (log/infof "pushing tiffs to object storage: %s" (:name raster))
-        (storage/put-file keyname rastername))
-      
+      (log/infof "pushing tiffs to object storage...")
+      (doall (map #(storage/put_tiff % (:name %)) rasters))
+      (log/infof "done pushing tiffs")
+
+      ; clean up tiffs
+      (log/infof "deleting local tiffs...")
+      (doall (map #(io/delete-file (:name %)) rasters))
+      (log/infof "done deleting")
+
       ; return urls
-      (map :url rasters)
+      (doall (map :url rasters)) 
 
       (catch Exception e
-        (let [names (seq (map :name rasters))
+        (let [names (doall (map :name rasters))
               msg (format "problem creating rasters %s: %s" names (.getMessage e))]
           (log/error msg)
-          (throw (ex-info msg {:type "data-generation-error" :message msg} (.getCause e)))))
-
-      (finally
-        (doseq [raster rasters
-                :let [name (:name raster)]]
-          (log/infof "attempting to delete tiff: %s" name)
-          (try
-            (io/delete-file name)
-            (catch java.io.IOException e
-              (log/errorf "%s not found" name))))))))
+          (throw (ex-info msg {:type "data-generation-error" :message msg})))))))
 
 (defn rasters-details
   [tileid date]

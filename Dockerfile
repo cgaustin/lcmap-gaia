@@ -6,6 +6,8 @@ RUN apt-get install openjdk-8-jre curl vim -y
 RUN apt-get install gdal-bin libgdal-dev libgdal-java libgdal20 python-gdal -y
 COPY resources/log4j.properties /log4j.properties
 COPY target/gaia-*-standalone.jar /
+COPY startup.sh /
+RUN chmod +x startup.sh
 ENV GTIFF_IGNORE_READ_ERRORS True
-CMD java -server -Xms$Xms -Xmx$Xmx -XX:+UseG1GC -jar gaia-*-standalone.jar
+
 

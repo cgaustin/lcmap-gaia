@@ -1,4 +1,4 @@
-(defproject gaia "1.2.0"
+(defproject gaia "1.3.0"
   :description "Level 2 CCDC Product Generation"
   :url "http://github.com/usgs-eros/lcmap-gaia"
   :license {:name "Unlicense"
@@ -35,7 +35,7 @@
 
   :plugins [[lein-environ "1.1.0"]]
   :profiles {:dev     {:dependencies [[org.clojure/test.check "0.9.0"]]}
-             :test    {:resource-paths ["test" "test/resources"] :dependencies [[org.clojure/test.check "0.9.0"]]}
+             :test    {:resource-paths ["test" "test/resources"] :dependencies [[org.clojure/test.check "0.9.0"]] :env {:storage-bucket "foo" :storage-destination "bar"}}
              :uberjar {:omit-source true
                        :aot :all}}
   :main lcmap.gaia.main)

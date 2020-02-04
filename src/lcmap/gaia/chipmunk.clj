@@ -10,6 +10,8 @@
   "Return the url for requesting chip data for a given ubid, x, and y"
   ([host ubid x y acquired]
    (str host "/chips?ubid=" ubid "&x=" x "&y=" y "&acquired=" acquired))
+  ([host ubid x y]
+   (chips_url host ubid x y (:chipmunk_acquired config)))
   ([ubid x y]
    (chips_url (:chipmunk_host config) ubid x y (:chipmunk_acquired config))))
 

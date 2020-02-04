@@ -63,6 +63,7 @@
    :storage-access-key (:storage-access-key       environ/env)
    :storage-secret-key (:storage-secret-key       environ/env)
    :storage-bucket     (:storage-bucket           environ/env)
+   :storage-destination (or (:storage-destination environ/env) (:storage-bucket environ/env)) 
    :storage-endpoint   (or (:storage-endpoint     environ/env) "http://localhost:7480")
    :storage-location   (or (:storage-location     environ/env) "/tmp")
    :query_day          (or (:query-day            environ/env) "07-01")
@@ -74,8 +75,6 @@
    :retry_strategy (or (string-to-coll (:retry-strategy environ/env) "retry-strategy") [5000 15000 30000])
    :fill_samelc    (or (try-read (:fill-samelc    environ/env)) true)
    :fill_difflc    (or (try-read (:fill-difflc    environ/env)) true)
-   :fill_nodata    (or (try-read (:fill-nodata    environ/env)) true)
-   :fill_nodataval (or (try-read (:fill-nodataval environ/env)) true)
    :lc_list        (vals lc_map)
    :lc_map         lc_map
    :lc_defaults (hash-map :lcc_growth   (or (try-read (:lc-growth       environ/env)) 151)

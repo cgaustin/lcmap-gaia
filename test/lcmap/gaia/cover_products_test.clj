@@ -71,25 +71,28 @@
          segments tr/first_sorted_segments
          post_forest_query_date (-> "2001-07-01" (util/to-ordinal))
          pre_forest_query_date (-> "1998-07-01" (util/to-ordinal))
-         nbrdiff (float 0.06)]
+         nbrdiff (float 0.06)
+         post_class_details (cover-products/class-details predictions post_forest_query_date nbrdiff)
+         pre_class_details (cover-products/class-details predictions pre_forest_query_date nbrdiff)]
      ;; default value 3 is grass, 4 is tree
-     (is (= 4 (cover-products/classify predictions post_forest_query_date 0 nbrdiff)))
-     (is (= 3 (cover-products/classify predictions pre_forest_query_date 0 nbrdiff)))
-     (is (= 3 (cover-products/classify predictions post_forest_query_date 1 nbrdiff)))
-     (is (= 4 (cover-products/classify predictions pre_forest_query_date 1 nbrdiff)))
-     ))
+     (is (= 4 (cover-products/classify (:primary post_class_details) post_forest_query_date 0)))
+     (is (= 3 (cover-products/classify (:primary pre_class_details) pre_forest_query_date 0)))
+     (is (= 3 (cover-products/classify (:secondary post_class_details) post_forest_query_date 1)))
+     (is (= 4 (cover-products/classify (:secondary pre_class_details) pre_forest_query_date 1)))))
 
 (deftest classify_negative_nbr_test
   (let [predictions tr/forest_to_grass_probs  ;(map cover-products/convert_prediction_dates tr/forest_to_grass_probs)
         segments tr/first_sorted_segments
         post_grass_query_date (-> "2001-07-01" (util/to-ordinal))
         pre_grass_query_date (-> "1998-07-01" (util/to-ordinal))
-        nbrdiff (float -0.06)]
+        nbrdiff (float -0.06)
+        post_class_details (cover-products/class-details predictions post_grass_query_date nbrdiff)
+        pre_class_details (cover-products/class-details predictions pre_grass_query_date nbrdiff)]
     ;; default value 3 is grass, 4 is tree
-    (is (= 3 (cover-products/classify predictions post_grass_query_date 0 nbrdiff)))
-    (is (= 4 (cover-products/classify predictions pre_grass_query_date 0 nbrdiff)))
-    (is (= 4 (cover-products/classify predictions post_grass_query_date 1 nbrdiff)))
-    (is (= 3 (cover-products/classify predictions pre_grass_query_date 1 nbrdiff)))))
+    (is (= 3 (cover-products/classify (:primary post_class_details) post_grass_query_date 0)))
+    (is (= 4 (cover-products/classify (:primary pre_class_details) pre_grass_query_date 0)))
+    (is (= 4 (cover-products/classify (:secondary post_class_details) post_grass_query_date 1)))
+    (is (= 3 (cover-products/classify (:secondary pre_class_details) pre_grass_query_date 1)))))
 
 (deftest classify_else_test
   (let [first_segment (first tr/first_sorted_segments)
@@ -98,12 +101,12 @@
         nbrdiff (cover-products/normalized-burn-ratio first_segment sday eday) ; 0.1204...
         probs (:predictions tr/first_segments_predictions) ; (map cover-products/convert_prediction_dates (:predictions tr/first_segments_predictions))
         sorted_probabilities (util/sort-by-key probs "pday")
-        ]
-    (is (= 3 (cover-products/classify sorted_probabilities tr/query_ord 0 nbrdiff)))))
+        class_details (cover-products/class-details sorted_probabilities tr/query_ord nbrdiff)]
+    (is (= 3 (cover-products/classify (:primary class_details) tr/query_ord 0)))))
 
 (deftest characterize_segment_test
   (with-redefs [cover-products/normalized-burn-ratio (fn [i x z] 66)
-                cover-products/classify (fn [a b c d] 99)]
+                cover-products/classify (fn [a b c] 99)]
     (let [segment   {"sday" "1990-04-27" "eday" "2000-06-11" "bday" "2000-06-11" "chprob" 1.0}
           query_day (-> "1998-07-01" (util/to-ordinal))
           probabilities [{"sday" "1990-04-27" "pday" "1998-07-01"} 
