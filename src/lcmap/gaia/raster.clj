@@ -87,7 +87,7 @@
         stored_name (str (string/join "-" elements) ".tif")
         output_name (string/replace stored_name #"-" "_") ; CEPH prohibits underscores
         prefix (storage/get-prefix grid date tileid "raster" product)
-        url (storage/get_url storage/bucketname (str prefix "/" stored_name))
+        url (storage/get_url storage/dest_bucket (str prefix "/" stored_name))
         type (:type (last product_info))
         metadata-template (:metadata-template (last product_info))]
     {:name output_name :prefix prefix :url url :data-type type :data-product data_product :metadata-template metadata-template}))

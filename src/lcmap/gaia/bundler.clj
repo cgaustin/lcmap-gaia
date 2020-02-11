@@ -160,12 +160,12 @@
   details)
 
 (defn generate-bundle-metadata
-  [tile date metadata_name bundle_name] ;LCMAP_CU_003010_2010_20181222_V01_CCDC.xml
+  [tile date metadata_name bundle_name tiff_name] ;LCMAP_CU_003010_2010_20181222_V01_CCDC.xml
   (let [template (slurp "templates/bundle_template.xml")
-        values (get-bundle-values tile date bundle_name)
+        values (get-bundle-values tile date bundle_name tiff_name)
         metadata (comb/eval template values)]
-    (spit name metadata)
-    name))
+    (spit metadata_name metadata)
+    metadata_name))
 
 (defn generate-cog
   [details cog_name] ; https://trac.osgeo.org/gdal/wiki/CloudOptimizedGeoTIFF

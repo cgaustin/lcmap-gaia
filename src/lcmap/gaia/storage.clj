@@ -116,7 +116,7 @@
         content-length (.length javafile)
         metadata {:content-length content-length :content-type (type_keyword content_types)}
         acl {:grant-permission ["AllUsers" "Read"]}]
-    (s3/put-object client-config :bucket-name bucketname :key keyname  :file javafile :metadata metadata :access-control-list acl)
+    (s3/put-object client-config :bucket-name dest_bucket :key keyname  :file javafile :metadata metadata :access-control-list acl)
     true))
 
 (defn drop_object
@@ -151,14 +151,14 @@
   ([bucket keyname]
      (str (:storage-endpoint config) "/" bucket "/" keyname))
   ([keyname]
-   (get_url bucketname keyname)))
+   (get_url source_bucket keyname)))
 
 (defn set_public_acl
   ([bucket keyname]
    (s3/set-object-acl client-config bucket keyname CannedAccessControlList/PublicRead)
    (get_url bucket keyname))
   ([keyname]
-   (set_public_acl bucketname keyname)))
+   (set_public_acl source_bucket keyname)))
 
 (defn parse_body
   [http_response]
@@ -226,13 +226,13 @@
         vvv    (subs tile 3 6)
         base   (format "raster/%s/%s/%s/%s/" year region hhh vvv)   ; raster/2009/CU/029/006/
         prefixes (map (fn [i] (str base i "/")) ["cover" "change"]) ; ["raster/2009/CU/029/006/cover/" ...]
-        objects  (flatten (map (fn [i] (list_bucket_contents bucketname i)) prefixes))] ; collection of object keys
+        objects  (flatten (map (fn [i] (list_bucket_contents source_bucket i)) prefixes))] ; collection of object keys
     (doall (map (fn [i] (latest_tif objects i)) product_details)))) ; return hash-map like product_details, but with new :object-key key/value
 
 (defn chip                                                                                                                            
   "Return /chip data for a cx cy pair"
   [cx cy] 
-  (let [url (str (:endpoint client-config) "/" bucketname "/chip/" (int cx) "-" (int cy) ".json")
+  (let [url (str (:endpoint client-config) "/" source_bucket "/chip/" (int cx) "-" (int cy) ".json")
         response @(http/get url)]
     (if (= 200 (:status response))
       (first (parse_body response))
