@@ -230,3 +230,10 @@
 (defn delete [file]
   (log/infof (format "deleting: %s" file))
   (io/delete-file file true))
+
+(defn zero-pad
+  [number pad]
+  (let [fmt_str (str "%." pad "f")]
+    (format fmt_str (float number))))
+
+

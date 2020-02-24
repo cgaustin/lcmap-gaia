@@ -63,35 +63,40 @@
 
 (defn query-month
   [indate]
-  (second (string/split indate #"-x")))
+  (second (string/split indate #"-")))
 
 (defn sha512
   [filename]
   (digest/sha-512 (io/as-file filename)))
 
+(defn sha256
+  [filename]
+  (digest/sha-256 (io/as-file filename)))
+
 (defn get-bundle-values
   "Return metadata values for bundle level metadata"
   [tile query_date bundle_name tif_name]
   (let [layer_info (gdal/info tif_name)
+        zp       util/zero-pad
         coord_ul (get-in layer_info [:cornerCoordinates :upperLeft])
         coord_lr (get-in layer_info [:cornerCoordinates :lowerRight])
         coord_ul_converted (gdal/geographic-coords coord_ul)
         coord_lr_converted (gdal/geographic-coords coord_lr)
-        coord_west (first coord_ul_converted)
-        coord_east (first coord_lr_converted)
-        coord_north (second coord_ul_converted)
-        coord_south (second coord_lr_converted)
+        coord_west (zp (first coord_ul_converted) 10)
+        coord_east (zp (first coord_lr_converted) 10)
+        coord_north (zp (second coord_ul_converted) 10)
+        coord_south (zp (second coord_lr_converted) 10)
         hhh (subs tile 0 3)
         vvv (subs tile 3 6)
         coord_wkt (get-in layer_info [:coordinateSystem :wkt])
         coord_pattern #(re-pattern (format "(.|\n)*%s\",(.*)\\](.|\n)*" %))
         datum      (get (re-matches #"(.|\n)*DATUM\[\"(.*)\",(.|\n)*" coord_wkt) 2)
-        parallel_1 (get (re-matches (coord_pattern "standard_parallel_1") coord_wkt) 2)
-        parallel_2 (get (re-matches (coord_pattern "standard_parallel_2") coord_wkt) 2)
-        meridian   (get (re-matches (coord_pattern "longitude_of_center") coord_wkt) 2)
-        latitude   (get (re-matches (coord_pattern "latitude_of_center") coord_wkt) 2)
-        easting    (get (re-matches (coord_pattern "false_easting") coord_wkt) 2)
-        northing   (get (re-matches (coord_pattern "false_northing") coord_wkt) 2)]
+        parallel_1 (zp (get (re-matches (coord_pattern "standard_parallel_1") coord_wkt) 2) 6) 
+        parallel_2 (zp (get (re-matches (coord_pattern "standard_parallel_2") coord_wkt) 2) 6)
+        meridian   (zp (get (re-matches (coord_pattern "longitude_of_center") coord_wkt) 2) 6)
+        latitude   (zp (get (re-matches (coord_pattern "latitude_of_center") coord_wkt) 2) 6)
+        easting    (zp (get (re-matches (coord_pattern "false_easting") coord_wkt) 2) 6)
+        northing   (zp (get (re-matches (coord_pattern "false_northing") coord_wkt) 2) 6)]
 
     (hash-map :collection (:collection config)
               :version (:ccd_ver config)
@@ -102,7 +107,7 @@
               :query_month (query-month query_date)
               :bundle_name bundle_name
               :production_date (util/today-as-str)
-              :bundle_checksum (sha512 bundle_name)
+              :bundle_checksum (sha256 bundle_name)
               :coordinate_west  coord_west
               :coordinate_east  coord_east
               :coordinate_north coord_north
@@ -112,10 +117,10 @@
               :datum datum
               :projection "AEA"
               :units "meters"
-              :ul_x (first coord_ul)
-              :ul_y (second coord_ul)
-              :lr_x (first coord_lr)
-              :lr_y (second coord_lr)
+              :ul_x (zp (first coord_ul) 6) 
+              :ul_y (zp (second coord_ul) 6)
+              :lr_x (zp (first coord_lr) 6)
+              :lr_y (zp (second coord_lr) 6)
               :standard_parallel1 parallel_1
               :standard_parallel2 parallel_2
               :central_meridian meridian
@@ -279,7 +284,7 @@
 
       ;(push-bundle output_names)
       (log/infof "pushing generated metadata to storage")
-      (persist-metadata tiff_details xml_names)
+      ;(persist-metadata tiff_details xml_names)
 
       ; cleanup
       (log/infof "NOT cleaning up files")
