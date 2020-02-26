@@ -70,6 +70,8 @@
    :chipmunk_host      (or (:chipmunk-host        environ/env) "http://localhost:5656")
    :chipmunk_acquired  (or (:chipmunk-acquired    environ/env) "1999-01-01/2002-01-01")
    :stability_begin    (or (:stability-begin      environ/env) "1982-01-01")
+   :observation_begin  (or (:observation-begin    environ/env) "1985")
+   :observation_end    (or (:observation-end      environ/env) "2017")
    :http_port      (or (try-read (:http-port      environ/env)) 9876)
    :nemo_timeout   (or (try-read (:nemo-timeout   environ/env)) 2400000)
    :retry_strategy (or (string-to-coll (:retry-strategy environ/env) "retry-strategy") [5000 15000 30000])

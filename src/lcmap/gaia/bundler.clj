@@ -39,17 +39,33 @@
   true)
 
 (defn get-metadata-values
-  [detail]
+  [tile date detail]
+  ; based on lcchg_template.html
+  (let [layer_info (gdal/info (:name detail))
+        zp       util/zero-pad
+        coord_ul (get-in layer_info [:cornerCoordinates :upperLeft])
+        coord_lr (get-in layer_info [:cornerCoordinates :lowerRight])
+        coord_ul_converted (gdal/geographic-coords coord_ul)
+        coord_lr_converted (gdal/geographic-coords coord_lr)
+        coord_west (zp (first coord_ul_converted) 10)
+        coord_east (zp (first coord_lr_converted) 10)
+        coord_north (zp (second coord_ul_converted) 10)
+        coord_south (zp (second coord_lr_converted) 10)
 
-  (hash-map :pubdate 2019    ; year published
-            :endrange 2017   ; last year of observations used
-            :westbc   111       ; bounding coordinates
-            :eastbc   222
-            :northbc  333
-            :southbc  444
-            :processing_date 555 ; the final processing date
 
-            ))
+        ]
+    (hash-map :pubdate (util/todays-year)             ; year published
+              :begin_date (:observation_begin config) ; first year of observations used
+              :end_date (:observation_end config)     ; last year of observations used
+              :westbc  coord_west  ; bounding coordinates
+              :eastbc  coord_east
+              :northbc coord_north
+              :southbc coord_south
+
+              )
+
+    )
+)
 
 (defn first-doy
   [indate]
@@ -106,7 +122,7 @@
               :end_date (last-doy query_date)
               :query_month (query-month query_date)
               :bundle_name bundle_name
-              :production_date (util/today-as-str)
+              :production_date (util/todays-date-conc)
               :bundle_checksum (sha256 bundle_name)
               :coordinate_west  coord_west
               :coordinate_east  coord_east
@@ -155,11 +171,17 @@
   details)
 
 (defn generate-layer-metadata
-  [details]
+  [tile date details]
+  ;; example single detail ->
+  ;; {:abbr "LCPRI", :type 1, :metadata-template "templates/lcpri_template.xml", 
+  ;;  :object-key "raster/1989/CU/019/011/cover/LCMAP-CU-019011-1989-20191223-V01-LCPRI.tif", 
+  ;;  :name "LCMAP-CU-019011-1989-20191223-V01-LCPRI.tif", 
+  ;;  :url "http://10.0.84.178:7484/ard-cu-c01-v01-aux-cu-v01-ccdc-1-0/raster/1989/CU/019/011/cover/LCMAP-CU-019011-1989-20191223-V01-LCPRI.tif"}
+
   (doseq [detail details
           :let [template (slurp (:metadata-template detail))          ; read in template
                 output (string/replace (:name detail) #".tif" ".xml") ; calc output name
-                values (get-metadata-values detail)                   ; calc sub values
+                values (get-metadata-values tile date detail)         ; calc sub values
                 metadata (comb/eval template values)]]                ; sub in values ;(comb/eval "Hello <%= name %>" {:name "Alice"})
     (spit output metadata))                                           ; write out file
   details)
@@ -222,7 +244,7 @@
         ccdver   (:ccd_ver config)
         year     (first (string/split date #"-"))
         year_ptn (re-pattern (str year "_"))
-        today    (util/today-as-str) 
+        today    (util/todays-date-conc) 
         elements ["LCMAP" region tile year today ccdver]
         base_str (-> (string/join "_" elements) (str "_")) 
         obs_str  (string/replace base_str year_ptn "")]
@@ -261,7 +283,7 @@
 
       ; generate layer metadata
       (log/infof "generating layer metadata")
-      (generate-layer-metadata tiff_details)
+      (generate-layer-metadata tile date tiff_details)
 
       ; generate observations list
       (log/infof "generating observation list")

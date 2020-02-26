@@ -91,6 +91,8 @@ Gaia is configured using these environment variables:
 | `NEMO_HOST`          | base url for lcmap-nemo resource            |
 | `NEMO_TIMEOUT`       | timeout for Nemo requests                   |
 | `OBSERVATIONS_PATH`  | resource for observations data              |
+| `OBSERVATION_BEGIN`  | first year of processed observations        | 1985
+| `OBSERVATION_END`    | last year of processed observations         | 2017
 | `PREDICTIONS_PATH`   | resource path for prediction data           |
 | `QUERY_DAY`          | date for product value calculations         |
 | `REGION`             | region abbreviation (cu, ak, hi)            |

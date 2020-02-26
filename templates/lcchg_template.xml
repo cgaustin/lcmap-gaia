@@ -4,7 +4,7 @@
     <citation>
       <citeinfo>
         <origin>U.S. Geological Survey</origin>
-        <pubdate>2019</pubdate>
+        <pubdate><%= pubdate %></pubdate>
         <title>LCMAP Land Cover and Land Change</title>
         <geoform>raster digital data</geoform>
         <pubinfo>
@@ -24,8 +24,8 @@ The classification component of CCDC involves using the coefficients of time ser
     <timeperd>
       <timeinfo>
         <rngdates>
-          <begdate>1985</begdate>
-          <enddate>2017</enddate>
+          <begdate><%= begin_date %></begdate>
+          <enddate><%= end_date %></enddate>
         </rngdates>
       </timeinfo>
       <current>ground condition</current>
@@ -36,10 +36,10 @@ The classification component of CCDC involves using the coefficients of time ser
     </status>
     <spdom>
       <bounding>
-        <westbc><%= %></westbc>
-        <eastbc><%= %></eastbc>
-        <northbc><%= %></northbc>
-        <southbc><%= %></southbc>
+        <westbc><%= westbc %></westbc>
+        <eastbc><%= eastbc %></eastbc>
+        <northbc><%= northbc %></northbc>
+        <southbc><%= southbc %></southbc>
       </bounding>
     </spdom>
     <keywords>
