@@ -30,7 +30,9 @@
                  [listora/again             "1.0.0"]]
 
   :plugins [[lein-environ "1.1.0"]]
-  :profiles {:dev     {:dependencies [[org.clojure/test.check "0.9.0"]]}
+  :codox {:output-path "docs"}
+  :profiles {:dev     {:plugins [[lein-codox "0.10.7"]]
+                       :dependencies [[org.clojure/test.check "0.9.0"]]}
              :test    {:resource-paths ["test" "test/resources"] :dependencies [[org.clojure/test.check "0.9.0"]] :env {:storage-bucket "foo" :storage-destination "bar"}}
              :uberjar {:omit-source true
                        :aot :all}}

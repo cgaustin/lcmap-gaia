@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+#echo `head -n1 project.clj | grep -oP "[\d+]\.[\d+]\.[\d+](-SNAPSHOT)?(-RC[\d+])?"`
+echo `head -n1 project.clj |grep -oE "[[:digit:]]+\.[[:digit:]]+\.[[:digit:]]+(-SNAPSHOT)?(-RC[[:digit:]]+)?"`

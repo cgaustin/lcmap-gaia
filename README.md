@@ -87,8 +87,6 @@ Gaia is configured using these environment variables:
 | `STORAGE_DESTINATION | name of object store bucket to persist to   | ${STORAGE_BUCKET}
 | `STORAGE_ENDPOINT`   | url for object storage service              |
 | `STORAGE_SECRET_KEY` | secret key for object storage service       |
-| `WORK_DIR`           | dir within container to run the jar,        | /
-|                      | temporary files are kept here               | (used only by startup.sh in container)
 | `Xms`                | minimum JVM memory                          |
 | `Xmx`                | maximum JVM memory                          |
 
