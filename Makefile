@@ -20,8 +20,6 @@ build:
 
 tests:  
 	@docker run --rm \
-                    -e Xms=4352m \
-                    -e Xmx=4352m \
                     --entrypoint /app/bin/lein-test-entrypoint.sh $(TAG)	
 
 docs:

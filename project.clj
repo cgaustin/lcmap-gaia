@@ -33,7 +33,10 @@
   :codox {:output-path "docs"}
   :profiles {:dev     {:plugins [[lein-codox "0.10.7"]]
                        :dependencies [[org.clojure/test.check "0.9.0"]]}
-             :test    {:resource-paths ["test" "test/resources"] :dependencies [[org.clojure/test.check "0.9.0"]] :env {:storage-bucket "foo" :storage-destination "bar"}}
+             :test    {:jvm-opts ["-Xmx2048m"]
+                       :resource-paths ["test" "test/resources"]
+                       :dependencies [[org.clojure/test.check "0.9.0"]]
+                       :env {:storage-bucket "foo" :storage-destination "bar"}}
              :uberjar {:omit-source true
                        :aot :all}}
   :main lcmap.gaia.main)
