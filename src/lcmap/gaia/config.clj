@@ -77,6 +77,12 @@
    :retry_strategy (or (string-to-coll (:retry-strategy environ/env) "retry-strategy") [5000 15000 30000])
    :fill_samelc    (or (try-read (:fill-samelc    environ/env)) true)
    :fill_difflc    (or (try-read (:fill-difflc    environ/env)) true)
+   :data-release-doi       (or (:data-release-doi environ/env) "https://doi.org/10.5066/P9W1TO6E")
+   :validation-release-doi (or (:data-release-doi environ/env) "https://doi.org/10.5066/P98EC5XR")
+   :add-doi                (or (:add-doi environ/env) "https://doi.org/10.5066/xxxxxxxx")
+   :add-date               (or (:add-doi environ/env) "2020-04-01")
+   :ccd-doi                (or (:ccd-doi environ/env) "https://doi.org/10.5066/xxxxxxxx")
+   :ccd-date               (or (:ccd-doi environ/env) "2020-04-01")
    :lc_list        (vals lc_map)
    :lc_map         lc_map
    :lc_defaults (hash-map :lcc_growth   (or (try-read (:lc-growth       environ/env)) 151)

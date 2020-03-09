@@ -39,7 +39,7 @@
   true)
 
 (defn get-metadata-values
-  [tile date detail]
+  [tile date detail bundle_name]
   ; based on lcchg_template.html
   (let [layer_info (gdal/info (:name detail))
         zp       util/zero-pad
@@ -51,8 +51,12 @@
         coord_east (zp (first coord_lr_converted) 10)
         coord_north (zp (second coord_ul_converted) 10)
         coord_south (zp (second coord_lr_converted) 10)
-
-
+        data_release_doi (:data-release-doi config)
+        validation_release_doi (:validation-release-doi config)
+        add_doi (:add-doi config)
+        add_date (:add-date config)
+        ccd_doi (:ccd-doi config)
+        ccd_date false ; latest segment proc date?
         ]
     (hash-map :pubdate (util/todays-year)             ; year published
               :begin_date (:observation_begin config) ; first year of observations used
@@ -61,7 +65,13 @@
               :eastbc  coord_east
               :northbc coord_north
               :southbc coord_south
-
+              :data_release_doi data_release_doi
+              :validation_release_doi validation_release_doi
+              :add_doi add_doi
+              :add_date add_date
+              :ccd_doi ccd_doi
+              :ccd_date ccd_date
+              :bundle_name bundle_name
               )
 
     )
@@ -171,7 +181,7 @@
   details)
 
 (defn generate-layer-metadata
-  [tile date details]
+  [tile date details bundle_name]
   ;; example single detail ->
   ;; {:abbr "LCPRI", :type 1, :metadata-template "templates/lcpri_template.xml", 
   ;;  :object-key "raster/1989/CU/019/011/cover/LCMAP-CU-019011-1989-20191223-V01-LCPRI.tif", 
@@ -179,11 +189,11 @@
   ;;  :url "http://10.0.84.178:7484/ard-cu-c01-v01-aux-cu-v01-ccdc-1-0/raster/1989/CU/019/011/cover/LCMAP-CU-019011-1989-20191223-V01-LCPRI.tif"}
 
   (doseq [detail details
-          :let [template (slurp (:metadata-template detail))          ; read in template
-                output (string/replace (:name detail) #".tif" ".xml") ; calc output name
-                values (get-metadata-values tile date detail)         ; calc sub values
-                metadata (comb/eval template values)]]                ; sub in values ;(comb/eval "Hello <%= name %>" {:name "Alice"})
-    (spit output metadata))                                           ; write out file
+          :let [template (slurp (:metadata-template detail))              ; read in template
+                output (string/replace (:name detail) #".tif" ".xml")     ; calc output name
+                values (get-metadata-values tile date detail bundle_name) ; calc sub values
+                metadata (comb/eval template values)]]                    ; sub in values ;(comb/eval "Hello <%= name %>" {:name "Alice"})
+    (spit output metadata))                                               ; write out file
   details)
 
 (defn generate-bundle-metadata
@@ -283,7 +293,7 @@
 
       ; generate layer metadata
       (log/infof "generating layer metadata")
-      (generate-layer-metadata tile date tiff_details)
+      (generate-layer-metadata tile date tiff_details (:bundle output_names))
 
       ; generate observations list
       (log/infof "generating observation list")
