@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<lcmap_metadata version="1.0" xmlns="https://landsat.usgs.gov/lcmap/v1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="https://landsat.usgs.gov/lcmap/v1 https://landsat.usgs.gov/lcmap/lcmap_metadata_v1.xsd">
+<metadata>
   <tile_metadata>
     <global_metadata>
       <data_provider>USGS/EROS</data_provider>
@@ -40,4 +40,4 @@
       <tile_grid h="<%= tile_h %>" v="<%= tile_v %>" />
     </global_metadata>
   </tile_metadata>
-</lcmap_metadata>
+</metadata>
