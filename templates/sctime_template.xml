@@ -11,7 +11,7 @@
           <pubplace>Sioux Falls, SD</pubplace>
           <publish>U.S. Geological Survey</publish>
         </pubinfo>
-        <onlink><%= data_release_doi %></onlink>
+        <onlink>https://doi.org/10.5066/P9W1TO6E</onlink>
       </citeinfo>
     </citation>
     <descript>
