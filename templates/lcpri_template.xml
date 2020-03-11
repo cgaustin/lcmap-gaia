@@ -4,14 +4,14 @@
     <citation>
       <citeinfo>
         <origin>U.S. Geological Survey</origin>
-        <pubdate><%= pubdate %></pubdate>
+        <pubdate>2020</pubdate>
         <title>LCMAP Land Cover and Land Change</title>
         <geoform>raster digital data</geoform>
         <pubinfo>
           <pubplace>Sioux Falls, SD</pubplace>
           <publish>U.S. Geological Survey</publish>
         </pubinfo>
-        <onlink><%= data_release_doi %></onlink>
+        <onlink>https://doi.org/10.5066/P9W1TO6E</onlink>
       </citeinfo>
     </citation>
     <descript>
@@ -25,7 +25,7 @@ The classification component of CCDC involves using the coefficients of time ser
       <timeinfo>
         <rngdates>
           <begdate>1985</begdate>
-          <enddate><%= endrange %></enddate>
+          <enddate>2017</enddate>
         </rngdates>
       </timeinfo>
       <current>ground condition</current>
