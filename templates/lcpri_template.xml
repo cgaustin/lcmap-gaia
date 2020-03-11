@@ -131,9 +131,9 @@ The classification component of CCDC involves using the coefficients of time ser
   </idinfo>
   <dataqual>
     <attracc>
-      <attraccr>Science-<WAITINGFORKELCY/></attraccr>
+      <attraccr>https://doi.org/10.5066/P98EC5XR</attraccr>
     </attracc>
-    <logic>Science-<WAITINGFORKELCY/></logic>
+    <logic>No formal logical accuracy tests were conducted</logic>
     <complete>Data set is considered complete for the information presented, as described in the abstract. Users are advised to read the rest of the metadata record carefully for additional details.</complete>
     <posacc>
       <horizpa>
