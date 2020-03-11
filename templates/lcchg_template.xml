@@ -24,8 +24,8 @@ The classification component of CCDC involves using the coefficients of time ser
     <timeperd>
       <timeinfo>
         <rngdates>
-          <begdate><%= begin_date %></begdate>
-          <enddate><%= end_date %></enddate>
+          <begdate>1985</begdate>
+          <enddate>2017</enddate>
         </rngdates>
       </timeinfo>
       <current>ground condition</current>
