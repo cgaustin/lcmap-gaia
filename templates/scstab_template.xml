@@ -149,7 +149,7 @@ The classification component of CCDC involves using the coefficients of time ser
         <procdate>Unknown</procdate>
       </procstep>
       <procstep>
-        <procdesc>Continuous Change Detection. Landsat ARD surface reflectance (SR), brightness temperature (BT), and PixelQA data are retrieved through LCMAP data access services for the date range 1982-01-01 through 2017-12-31 (inclusive) from the LCMAP Information Warehouse and Data Store (IWDS). These data are then processed by the LCMAP implementation of the Continuous Change Detection component of the CCDC algorithm ( https://github.com/USGS-EROS/lcmap-pyccd ), with results stored back in the LCMAP IWDS. The full list of observation dates from ARD used for processing through Continuous Change Detection is available in the separate file CCD_Dates.txt. Implementing software: <%= ccd_doi %></procdesc>
+        <procdesc>Continuous Change Detection. Landsat ARD surface reflectance (SR), brightness temperature (BT), and PixelQA data are retrieved through LCMAP data access services for the date range 1982-01-01 through 2017-12-31 (inclusive) from the LCMAP Information Warehouse and Data Store (IWDS). These data are then processed by the LCMAP implementation of the Continuous Change Detection component of the CCDC algorithm, with results stored back in the LCMAP IWDS. The full list of observation dates from ARD used for processing through Continuous Change Detection is available in the separate file CCD_Dates.txt.</procdesc>
         <procdate><%= ccd_date %></procdate>
       </procstep>
       <procstep>
