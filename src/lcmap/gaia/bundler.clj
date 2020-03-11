@@ -39,7 +39,7 @@
   true)
 
 (defn get-metadata-values
-  [tile date detail bundle_name]
+  [tile date detail bundle_name observations_name]
   ; based on lcchg_template.html
   (let [layer_info (gdal/info (:name detail))
         zp       util/zero-pad
@@ -56,7 +56,7 @@
         add_doi (:add-doi config)
         add_date (:add-date config)
         ccd_doi (:ccd-doi config)
-        ccd_date false ; latest segment proc date?
+
         ]
     (hash-map :pubdate (util/todays-year)             ; year published
               :begin_date (:observation_begin config) ; first year of observations used
@@ -72,6 +72,7 @@
               :ccd_doi ccd_doi
               :ccd_date ccd_date
               :bundle_name bundle_name
+              :observations_name observations_name
               )
 
     )
@@ -181,7 +182,7 @@
   details)
 
 (defn generate-layer-metadata
-  [tile date details bundle_name]
+  [tile date details bundle_name observations_name]
   ;; example single detail ->
   ;; {:abbr "LCPRI", :type 1, :metadata-template "templates/lcpri_template.xml", 
   ;;  :object-key "raster/1989/CU/019/011/cover/LCMAP-CU-019011-1989-20191223-V01-LCPRI.tif", 
@@ -191,7 +192,7 @@
   (doseq [detail details
           :let [template (slurp (:metadata-template detail))              ; read in template
                 output (string/replace (:name detail) #".tif" ".xml")     ; calc output name
-                values (get-metadata-values tile date detail bundle_name) ; calc sub values
+                values (get-metadata-values tile date detail bundle_name observations_name) ; calc sub values
                 metadata (comb/eval template values)]]                    ; sub in values ;(comb/eval "Hello <%= name %>" {:name "Alice"})
     (spit output metadata))                                               ; write out file
   details)
@@ -293,7 +294,7 @@
 
       ; generate layer metadata
       (log/infof "generating layer metadata")
-      (generate-layer-metadata tile date tiff_details (:bundle output_names))
+      (generate-layer-metadata tile date tiff_details (:bundle output_names) (:observations output_names))
 
       ; generate observations list
       (log/infof "generating observation list")
