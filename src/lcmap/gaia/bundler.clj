@@ -1,5 +1,6 @@
 (ns lcmap.gaia.bundler
-  (:require [clojure.string :as string]
+  (:require [clojure.core.async :as async]
+            [clojure.string :as string]
             [clojure.tools.logging :as log]
             [clojure.java.io       :as io]
             [clojure.java.shell :refer [sh]]
@@ -19,25 +20,6 @@
         out (io/output-stream name)]
     (io/copy in out)))
 
-(defn ccd_date
-  [x]
-  ; properties on row of segment table
-  true)
-
-(defn training_date
-  [x]
-  ; properties on row of tile table
-  true)
-
-(defn prediction_date
-  [x]
-  ; properties on row of prediction table
-  true)
-
-(defn production_date
-  [x]
-  true)
-
 (defn get-metadata-values
   [tile date detail bundle_name observations_name]
   ; based on lcchg_template.html
@@ -47,36 +29,17 @@
         coord_lr (get-in layer_info [:cornerCoordinates :lowerRight])
         coord_ul_converted (gdal/geographic-coords coord_ul)
         coord_lr_converted (gdal/geographic-coords coord_lr)
-        coord_west (zp (first coord_ul_converted) 10)
-        coord_east (zp (first coord_lr_converted) 10)
+        coord_west  (zp (first coord_ul_converted) 10)
+        coord_east  (zp (first coord_lr_converted) 10)
         coord_north (zp (second coord_ul_converted) 10)
-        coord_south (zp (second coord_lr_converted) 10)
-        data_release_doi (:data-release-doi config)
-        validation_release_doi (:validation-release-doi config)
-        add_doi (:add-doi config)
-        add_date (:add-date config)
-        ccd_doi (:ccd-doi config)
-
-        ]
-    (hash-map :pubdate (util/todays-year)             ; year published
-              :begin_date (:observation_begin config) ; first year of observations used
-              :end_date (:observation_end config)     ; last year of observations used
-              :westbc  coord_west  ; bounding coordinates
+        coord_south (zp (second coord_lr_converted) 10)]
+    (hash-map :pubdate (util/todays-year)
+              :westbc  coord_west
               :eastbc  coord_east
               :northbc coord_north
               :southbc coord_south
-              :data_release_doi data_release_doi
-              :validation_release_doi validation_release_doi
-              :add_doi add_doi
-              :add_date add_date
-              :ccd_doi ccd_doi
-              :ccd_date ccd_date
               :bundle_name bundle_name
-              :observations_name observations_name
-              )
-
-    )
-)
+              :observations_name observations_name)))
 
 (defn first-doy
   [indate]
@@ -171,30 +134,47 @@
                           {:type "data-request-error" :message (.getMessage e)} (.getCause e)))))))
   details)
 
+
+(defn attempt-compress
+  [detail]
+  (let [name (:name detail)]
+    (if (gdal/compressed? name)
+      (log/infof name " looks compressed")
+      (do (log/infof (format "attempting to compress %s" name))
+          (gdal/compress_geotiff name))))
+  detail)
+
+(defn start-consumers
+  [number in-chan out-chan]
+  (dotimes [_ number]
+    (async/thread
+      (while (atom true)
+        (let [input  (async/<!! in-chan)
+              result (attempt-compress input)]
+          (async/>!! out-chan result))))))
+
 (defn validate-tifs
   [details]
-  (doseq [detail details]
-    (let [name (:name detail)]
-      (if (gdal/compressed? name)
-        (log/infof name " looks compressed")
-        (do (log/infof (format "attempting to compress %s" name))
-            (gdal/compress_geotiff name)))))
-  details)
+  (let [chunk-size 2
+        in-chan (async/chan)
+        out-chan (async/chan)
+        consumers (start-consumers chunk-size in-chan out-chan)
+        output_fn  (fn [i] (let [result (async/<!! out-chan)] result))]
+
+    (async/go
+      (doseq [detail details]
+        (async/>! in-chan detail)))
+
+    (doall (map output_fn details))))
 
 (defn generate-layer-metadata
   [tile date details bundle_name observations_name]
-  ;; example single detail ->
-  ;; {:abbr "LCPRI", :type 1, :metadata-template "templates/lcpri_template.xml", 
-  ;;  :object-key "raster/1989/CU/019/011/cover/LCMAP-CU-019011-1989-20191223-V01-LCPRI.tif", 
-  ;;  :name "LCMAP-CU-019011-1989-20191223-V01-LCPRI.tif", 
-  ;;  :url "http://10.0.84.178:7484/ard-cu-c01-v01-aux-cu-v01-ccdc-1-0/raster/1989/CU/019/011/cover/LCMAP-CU-019011-1989-20191223-V01-LCPRI.tif"}
-
   (doseq [detail details
-          :let [template (slurp (:metadata-template detail))              ; read in template
-                output (string/replace (:name detail) #".tif" ".xml")     ; calc output name
-                values (get-metadata-values tile date detail bundle_name observations_name) ; calc sub values
-                metadata (comb/eval template values)]]                    ; sub in values ;(comb/eval "Hello <%= name %>" {:name "Alice"})
-    (spit output metadata))                                               ; write out file
+          :let [template (slurp (:metadata-template detail))
+                output (string/replace (:name detail) #".tif" ".xml")
+                values (get-metadata-values tile date detail bundle_name observations_name)
+                metadata (comb/eval template values)]]
+    (spit output metadata))
   details)
 
 (defn generate-bundle-metadata
