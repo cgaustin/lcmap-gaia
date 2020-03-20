@@ -79,7 +79,6 @@
          byte_stream (java.io.ByteArrayInputStream. byte_data)
          metadata {:content-length (count byte_data) :content-type "application/json"}
          keyname (str (:prefix output_path) "/" (:name output_path))]
-
     (try
        (s3/put-object client-config :bucket-name bucket :key keyname :input-stream byte_stream :metadata metadata)
        true
@@ -110,14 +109,20 @@
 
 (defn put-file
   [keyname filelocation]
-  (let [content_types (hash-map :tiff "image/tiff" :xml "application/xml" :json "application/json")
-        type_keyword (-> filelocation (string/split #"\.") last keyword)
-        javafile (java.io.File. filelocation)
-        content-length (.length javafile)
-        metadata {:content-length content-length :content-type (type_keyword content_types)}
-        acl {:grant-permission ["AllUsers" "Read"]}]
-    (s3/put-object client-config :bucket-name dest_bucket :key keyname  :file javafile :metadata metadata :access-control-list acl)
-    true))
+  (log/infof (format "storage/put-file keyname: %s  filelocation: %s" keyname filelocation))
+  (try
+    (let [content_types (hash-map :tiff "image/tiff" :xml "application/xml" :json "application/json")
+          type_keyword (-> filelocation (string/split #"\.") last keyword)
+          javafile (java.io.File. filelocation)
+          content-length (.length javafile)
+          metadata {:content-length content-length :content-type (type_keyword content_types)}
+          acl {:grant-permission ["AllUsers" "Read"]}]
+      (s3/put-object client-config :bucket-name dest_bucket :key keyname  :file javafile :metadata metadata :access-control-list acl)
+      true)
+    (catch Exception e
+      (let [msg (format "problem putting file %s to ceph: %s" keyname (.getMessage e))]
+        (log/error msg)
+        (throw (ex-info msg {:type "data-request-error" :message msg} (.getCause e)))))))
 
 (defn drop_object
   [bucket filename]
