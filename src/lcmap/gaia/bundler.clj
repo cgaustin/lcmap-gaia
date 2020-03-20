@@ -148,7 +148,7 @@
   [number in-chan out-chan]
   (dotimes [_ number]
     (async/thread
-      (while (atom true)
+      (while true
         (let [input  (async/<!! in-chan)
               result (attempt-compress input)]
           (async/>!! out-chan result))))))
@@ -170,6 +170,7 @@
 (defn generate-layer-metadata
   [tile date details bundle_name observations_name]
   (doseq [detail details
+          
           :let [template (slurp (:metadata-template detail))
                 output (string/replace (:name detail) #".tif" ".xml")
                 values (get-metadata-values tile date detail bundle_name observations_name)
@@ -245,67 +246,75 @@
      :bundle-meta  (str base_str "CCDC.xml")
      :cog          (str base_str "CCDC.tif"))))
 
-(defn persist-metadata
-  [details xml_names]
-  (let [detail (first details)
-        prefix (string/replace (:object-key detail) (:name details) "")]
+  (defn persist-metadata
+    [details]
+    (doseq [detail details]
+      (let [xml_keyname (string/replace (:object-key detail) #"\.tif" ".xml")
+            xml_filename (last (string/split xml_keyname #"/"))]
+        (storage/put-file xml_keyname xml_filename))))
 
-    )
-)
+  (defn persist-and-clean
+    [output_names tiff_details all_names]
 
-(defn create
-  [{tile :tile tx :tx ty :ty date :date :as all}]
-  (let [output_names (output-names tile date)
-        tiff_details  (storage/latest_tile_tifs date tile raster/product_details)
-        tiff_names   (map :name tiff_details)
-        xml_names    (map (fn [i] (string/replace i #".tif" ".xml")) tiff_names)
-        all_names    (concat tiff_names (vals output_names))]
+    (log/infof "delivering bundle")
+    (push-bundle output_names)
 
-    (log/infof "received request to create bundle with params: %s" all)
+    (log/infof "pushing generated metadata to storage")
+    (persist-metadata tiff_details)
 
-    (try
-      ; download tiffs
-      (log/infof "downloading tiffs for: %s" all)
-      (get-tiffs tiff_details)
+    (log/infof "cleaning up files")
+    (cleanup all_names))
 
-      ; validate tif compression
-      (log/infof "validating tiff compression")
-      (validate-tifs tiff_details)
 
-      ; generate layer metadata
-      (log/infof "generating layer metadata")
-      (generate-layer-metadata tile date tiff_details (:bundle output_names) (:observations output_names))
+  (defn create
+    [{tile :tile tx :tx ty :ty date :date :as all}]
+    (let [output_names (output-names tile date)
+          tiff_details  (storage/latest_tile_tifs date tile raster/product_details)
+          tiff_names   (map :name tiff_details)
+          xml_names    (map (fn [i] (string/replace i #".tif" ".xml")) tiff_names)
+          all_names    (concat tiff_names (vals output_names))
+          testing      (if (= (:lcmap-env config) "test") true false)]
 
-      ; generate observations list
-      (log/infof "generating observation list")
-      (generate-observation-list tx ty tile date (:observations output_names))
+      (log/infof "received request to create bundle with params: %s" all)
 
-      ; generate cog
-      (log/info "generating COG")
-      (generate-cog tiff_details (:cog output_names))
+      (try
+        ; download tiffs
+        (log/infof "downloading tiffs for: %s" all)
+        (get-tiffs tiff_details)
 
-      ; assemble bundle
-      (log/infof "assembling bundle")
-      (assemble-bundle output_names tiff_names xml_names)
+        ; validate tif compression
+        (log/infof "validating tiff compression")
+        (validate-tifs tiff_details)
 
-      ; create bundle level metadata
-      (log/infof "generating bundle metadata")
-      (generate-bundle-metadata tile date (:bundle-meta output_names) (:bundle output_names) (first tiff_names))
+        ; generate layer metadata
+        (log/infof "generating layer metadata")
+        (generate-layer-metadata tile date tiff_details (:bundle output_names) (:observations output_names))
 
-      ; store bundle
-      (log/infof "NOT delivering bundle")
+        ; generate observations list
+        (log/infof "generating observation list")
+        (generate-observation-list tx ty tile date (:observations output_names))
 
-      ;(push-bundle output_names)
-      (log/infof "pushing generated metadata to storage")
-      ;(persist-metadata tiff_details xml_names)
+        ; generate cog
+        (log/info "generating COG")
+        (generate-cog tiff_details (:cog output_names))
 
-      ; cleanup
-      (log/infof "NOT cleaning up files")
-      ;(cleanup all_names)
+        ; assemble bundle
+        (log/infof "assembling bundle")
+        (assemble-bundle output_names tiff_names xml_names)
 
-      (merge all {:status "success" :tar (:bundle output_names)})
+        ; create bundle level metadata
+        (log/infof "generating bundle metadata")
+        (generate-bundle-metadata tile date (:bundle-meta output_names) (:bundle output_names) (first tiff_names))
 
-      (catch Exception e
-        (let [msg (format "problem generating tile bundle for tile: %s date: %s, message: %s" tile date (.getMessage e))]
-          (log/error msg)
-          (throw (ex-info msg {:type "data-generation-error" :message msg} (.getCause e))))))))
+        ; persist and clean
+        (if testing
+          (log/infof "the env variable LCMAP_ENV='test', NOT persisting bundled products!")
+          (persist-and-clean output_names tiff_details all_names))
+
+        (merge all {:status "success" :tar (:bundle output_names)})
+
+        (catch Exception e
+          (let [msg (format "problem generating tile bundle for tile: %s date: %s, message: %s" tile date (.getMessage e))]
+            (log/error msg)
+            (throw (ex-info msg {:type "data-generation-error" :message msg} (.getCause e))))))))
+  
