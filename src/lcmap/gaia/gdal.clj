@@ -137,16 +137,14 @@
 
 (defn compress_geotiff
   [input]
-  (let [command (sh "gdal_translate" input "working.tif" "-co" "COMPRESS=DEFLATE"
-                                                         "-co" "ZLEVEL=9"
-                                                         "-co" "TILED=YES"
-                                                         "-co" "PREDICTOR=2")]
-    (if (= 0 (:exit command))
-      (do ; success
-        (sh "rm" input)
-        (sh "mv" "working.tif" input))
+  (let [tmp_tif (string/replace input #".tif" "_working.tif")
+        translate (sh "gdal_translate" input tmp_tif "-co" "COMPRESS=DEFLATE" "-co" "ZLEVEL=9" "-co" "TILED=YES" "-co" "PREDICTOR=2")
+        remove (sh "rm" input)
+        move (sh "mv" tmp_tif input)]
+    (if (= 0 (:exit translate) (:exit remove) (:exit move))
+      (log/infof (format "Sucessfully compressed: %s" input))
       (do ; fail 
-        (let [msg (format "Error compressing tif: %s , message: %s" input (:err command))]
+        (let [msg (format "Error compressing tif: %s , translate: %s, remove: %s,  move: %s" input (:err translate) (:err remove) (:err move))]
             (throw (ex-info msg {:type "data-generation-error" :message msg})))))))
 
 (defn generate-cog
