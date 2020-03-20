@@ -88,6 +88,7 @@ Gaia is configured using these environment variables:
 | `LC_TREE`            | cover value for trees                       | 4
 | `LC_WATER`           | cover value for water                       | 5
 | `LC_WETLAND`         | cover value for wetland                     | 6
+| `LCMAP_ENV`          | to denote 'test' environment for storage    |
 | `NEMO_HOST`          | base url for lcmap-nemo resource            |
 | `NEMO_TIMEOUT`       | timeout for Nemo requests                   |
 | `OBSERVATIONS_PATH`  | resource for observations data              |

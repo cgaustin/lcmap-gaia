@@ -66,6 +66,7 @@
    :storage-destination (or (:storage-destination environ/env) (:storage-bucket environ/env)) 
    :storage-endpoint   (or (:storage-endpoint     environ/env) "http://localhost:7480")
    :storage-location   (or (:storage-location     environ/env) "/tmp")
+   :lcmap-env              (:lcmap-env            environ/env)
    :query_day          (or (:query-day            environ/env) "07-01")
    :chipmunk_host      (or (:chipmunk-host        environ/env) "http://localhost:5656")
    :chipmunk_acquired  (or (:chipmunk-acquired    environ/env) "1999-01-01/2002-01-01")
