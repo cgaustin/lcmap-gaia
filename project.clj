@@ -38,4 +38,5 @@
              :test    {:resource-paths ["test" "test/resources"] :dependencies [[org.clojure/test.check "0.9.0"]] :env {:storage-bucket "foo" :storage-destination "bar"}}
              :uberjar {:omit-source true
                        :aot :all}}
+  :repl-options {:port 8081}
   :main lcmap.gaia.main)

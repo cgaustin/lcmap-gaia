@@ -14,14 +14,14 @@
             [lcmap.gaia.util       :as util]
             [digest                :as digest]))
 
-(defn download 
+(defn download
   [url name]
   (let [in (io/input-stream url)
         out (io/output-stream name)]
     (io/copy in out)))
 
 (defn get-metadata-values
-  [tile date detail bundle_name observations_name]
+  [detail bundle_name observations_name]
   ; based on lcchg_template.html
   (let [layer_info (gdal/info (:name detail))
         zp       util/zero-pad
@@ -81,7 +81,7 @@
         coord_wkt (get-in layer_info [:coordinateSystem :wkt])
         coord_pattern #(re-pattern (format "(.|\n)*%s\",(.*)\\](.|\n)*" %))
         datum      (get (re-matches #"(.|\n)*DATUM\[\"(.*)\",(.|\n)*" coord_wkt) 2)
-        parallel_1 (zp (get (re-matches (coord_pattern "standard_parallel_1") coord_wkt) 2) 6) 
+        parallel_1 (zp (get (re-matches (coord_pattern "standard_parallel_1") coord_wkt) 2) 6)
         parallel_2 (zp (get (re-matches (coord_pattern "standard_parallel_2") coord_wkt) 2) 6)
         meridian   (zp (get (re-matches (coord_pattern "longitude_of_center") coord_wkt) 2) 6)
         latitude   (zp (get (re-matches (coord_pattern "latitude_of_center") coord_wkt) 2) 6)
@@ -107,7 +107,7 @@
               :datum datum
               :projection "AEA"
               :units "meters"
-              :ul_x (zp (first coord_ul) 6) 
+              :ul_x (zp (first coord_ul) 6)
               :ul_y (zp (second coord_ul) 6)
               :lr_x (zp (first coord_lr) 6)
               :lr_y (zp (second coord_lr) 6)
@@ -130,7 +130,7 @@
           (do (log/infof (format "received 403 response for %s, setting acl to public read" (:url detail)))
               (storage/set_public_acl (:object-key detail))
               (download (:url detail) (:name detail)))
-          (throw (ex-info (format "Error downloading tiff %s" (:url detail)) 
+          (throw (ex-info (format "Error downloading tiff %s" (:url detail))
                           {:type "data-request-error" :message (.getMessage e)} (.getCause e)))))))
   details)
 
@@ -170,10 +170,10 @@
 (defn generate-layer-metadata
   [tile date details bundle_name observations_name]
   (doseq [detail details
-          
+
           :let [template (slurp (:metadata-template detail))
                 output (string/replace (:name detail) #".tif" ".xml")
-                values (get-metadata-values tile date detail bundle_name observations_name)
+                values (get-metadata-values detail bundle_name observations_name)
                 metadata (comb/eval template values)]]
     (spit output metadata))
   details)
@@ -188,7 +188,7 @@
 
 (defn generate-cog
   [details cog_name] ; https://trac.osgeo.org/gdal/wiki/CloudOptimizedGeoTIFF
-  (let [names (map :name details) 
+  (let [names (map :name details)
         lcpri_name (first (filter #(re-matches #"(.*)LCPRI(.*)" %) names))]
     (gdal/generate-cog lcpri_name cog_name)
     cog_name))
@@ -206,7 +206,7 @@
   (let [observations (:observations object_names)
         bundle       (:bundle object_names)
         cog          (:cog object_names)
-        cmd (flatten ["tar" "-cf" bundle cog observations tiff_names metadata_names]) 
+        cmd (flatten ["tar" "-cf" bundle cog observations tiff_names metadata_names])
         result (apply sh cmd)]
     (if (= 0 (:exit result))
       bundle
@@ -236,9 +236,9 @@
         ccdver   (:ccd_ver config)
         year     (first (string/split date #"-"))
         year_ptn (re-pattern (str year "_"))
-        today    (util/todays-date-conc) 
+        today    (util/todays-date-conc)
         elements ["LCMAP" region tile year today ccdver]
-        base_str (-> (string/join "_" elements) (str "_")) 
+        base_str (-> (string/join "_" elements) (str "_"))
         obs_str  (string/replace base_str year_ptn "")]
     (hash-map
      :observations (str obs_str  "ACQS.txt")
@@ -317,4 +317,3 @@
           (let [msg (format "problem generating tile bundle for tile: %s date: %s, message: %s" tile date (.getMessage e))]
             (log/error msg)
             (throw (ex-info msg {:type "data-generation-error" :message msg} (.getCause e))))))))
-  
