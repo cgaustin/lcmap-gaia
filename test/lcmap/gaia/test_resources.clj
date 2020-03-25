@@ -55,23 +55,23 @@
   ([]
    (cover_data_1086765_1975335 "2010-07-01" 1086765 1975335)))
 
-   (defn get-wkt
-     []
-     "PROJCS[\"Albers\",\n
-      GEOGCS[\"WGS 84\",\n
-      DATUM[\"WGS_1984\",\n
-      SPHEROID[\"WGS 84\",6378140,298.2569999999957,\n
-      AUTHORITY[\"EPSG\",\"7030\"]],\n
-      AUTHORITY[\"EPSG\",\"6326\"]],\n
-      PRIMEM[\"Greenwich\",0],\n
-      UNIT[\"degree\",0.0174532925199433],\n
-      AUTHORITY[\"EPSG\",\"4326\"]],\n
-      PROJECTION[\"Albers_Conic_Equal_Area\"],\n
-      PARAMETER[\"standard_parallel_1\",29.5],\n
-      PARAMETER[\"standard_parallel_2\",45.5],\n
-      PARAMETER[\"latitude_of_center\",23],\n
-      PARAMETER[\"longitude_of_center\",-96],\n
-      PARAMETER[\"false_easting\",0],\n
-      PARAMETER[\"false_northing\",0],\n
-      UNIT[\"metre\",1,\n
-      AUTHORITY[\"EPSG\",\"9001\"]]]")
+(defn get-wkt
+   []
+   "PROJCS[\"Albers\",\n
+    GEOGCS[\"WGS 84\",\n
+    DATUM[\"WGS_1984\",\n
+    SPHEROID[\"WGS 84\",6378140,298.2569999999957,\n
+    AUTHORITY[\"EPSG\",\"7030\"]],\n
+    AUTHORITY[\"EPSG\",\"6326\"]],\n
+    PRIMEM[\"Greenwich\",0],\n
+    UNIT[\"degree\",0.0174532925199433],\n
+    AUTHORITY[\"EPSG\",\"4326\"]],\n
+    PROJECTION[\"Albers_Conic_Equal_Area\"],\n
+    PARAMETER[\"standard_parallel_1\",29.5],\n
+    PARAMETER[\"standard_parallel_2\",45.5],\n
+    PARAMETER[\"latitude_of_center\",23],\n
+    PARAMETER[\"longitude_of_center\",-96],\n
+    PARAMETER[\"false_easting\",0],\n
+    PARAMETER[\"false_northing\",0],\n
+    UNIT[\"metre\",1,\n
+    AUTHORITY[\"EPSG\",\"9001\"]]]")

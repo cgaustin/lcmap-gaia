@@ -134,7 +134,6 @@
                           {:type "data-request-error" :message (.getMessage e)} (.getCause e)))))))
   details)
 
-
 (defn attempt-compress
   [detail]
   (let [name (:name detail)]
@@ -168,9 +167,8 @@
     (doall (map output_fn details))))
 
 (defn generate-layer-metadata
-  [tile date details bundle_name observations_name]
+  [details bundle_name observations_name]
   (doseq [detail details
-
           :let [template (slurp (:metadata-template detail))
                 output (string/replace (:name detail) #".tif" ".xml")
                 values (get-metadata-values detail bundle_name observations_name)
@@ -194,7 +192,7 @@
     cog_name))
 
 (defn generate-observation-list
-  [tx ty tile date name]
+  [tx ty name]
   (let [results (storage/chip tx ty)
         dates   (get results "dates")
         newlined (string/join "\n" dates)]
@@ -288,11 +286,11 @@
 
         ; generate layer metadata
         (log/infof "generating layer metadata")
-        (generate-layer-metadata tile date tiff_details (:bundle output_names) (:observations output_names))
+        (generate-layer-metadata tiff_details (:bundle output_names) (:observations output_names))
 
         ; generate observations list
         (log/infof "generating observation list")
-        (generate-observation-list tx ty tile date (:observations output_names))
+        (generate-observation-list tx ty (:observations output_names))
 
         ; generate cog
         (log/info "generating COG")
