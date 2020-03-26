@@ -1,0 +1,8 @@
+# Ignore files open in editors
+*.swp
+target/
+docs/
+.lein-env
+.lein-failures
+*~
+*/~

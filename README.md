@@ -61,56 +61,56 @@ docker run -p 9876:${HTTP_PORT} -e CCD_VERSION=${CCD_VERSION} \
 
 Gaia is configured using these environment variables:
 
-| ENV                  | Description                                 | Default
-|----------------------|---------------------------------------------|------------------------------
-| `CCD_VERSION`        | version of ccd algorithm used to            |
-|                      | generate input data                         |
-| `CHIPMUNK_ACQUIRED`  | acquired value for requesting aux data      |
-| `CHIPMUNK_HOST`      | base url for lcmap-chipmunk resource        |
-| `COLLECTION`         | collection number of source data            |
-| `FILL_DIFFLC`        | fill between different landcover values     | true                                
-| `FILL_SAMELC`        | fill between same landcover values          | true
-| `HTTP_PORT`          | HTTP port to expose the server at           |
-| `LC_AFTERBREAK`      | confidence value for after break            | 214
-| `LC_AG`              | cover value for agriculture                 | 2
-| `LC_BACK`            | confidence value for fill back              | 213
-| `LC_BARREN`          | cover value for barren                      | 8
-| `LC_DECLINE`         | confidence value for decline                | 152
-| `LC_DEVELOP`         | cover value for developed                   | 1
-| `LC_DIFFLC`          | confidence value for different cover values | 212
-| `LC_FORWARDS`        | confidence value for fill forward           | 202
-| `LC_GRASS`           | cover value for grass                       | 3
-| `LC_GROWTH`          | confidence value for growth                 | 151
-| `LC_NOMODEL`         | confidence value for no model               | 201
-| `LC_NONE`            | cover value for 'none'                      | 0
-| `LC_SAMELC`          | confidence value for same cover values      | 211
-| `LC_SNOW`            | cover value for snow                        | 7
-| `LC_TREE`            | cover value for trees                       | 4
-| `LC_WATER`           | cover value for water                       | 5
-| `LC_WETLAND`         | cover value for wetland                     | 6
-| `LCMAP_ENV`          | to denote 'test' environment for storage    |
-| `NEMO_HOST`          | base url for lcmap-nemo resource            |
-| `NEMO_TIMEOUT`       | timeout for Nemo requests                   |
-| `OBSERVATIONS_PATH`  | resource for observations data              |
-| `OBSERVATION_BEGIN`  | first year of processed observations        | 1985
-| `OBSERVATION_END`    | last year of processed observations         | 2017
-| `PREDICTIONS_PATH`   | resource path for prediction data           |
-| `QUERY_DAY`          | date for product value calculations         |
-| `REGION`             | region abbreviation (cu, ak, hi)            |
-| `RETRY_STRATEGY`     | retry strategy for data requests            |
-| `SEGMENTS_PATH`      | resource path for segments data             |
-| `STABILITY_BEGIN`    | start date length-of-segment product        |
-| `STORAGE_ACCESS_KEY` | access key for object storage service       |
-| `STORAGE_BUCKET`     | name of the object store bucket to use      |
-| `STORAGE_DESTINATION | name of object store bucket to persist to   | ${STORAGE_BUCKET}
-| `STORAGE_ENDPOINT`   | url for object storage service              |
-| `STORAGE_LOCATION`   | file system location to place products      |
-| `STORAGE_SECRET_KEY` | secret key for object storage service       |
-| `TIFF_COMPRESS_COUNT`| simultaneous compression operations         | 2
-| `WORK_DIR`           | dir within container to run the jar,        | /
-|                      | temporary files are kept here               | (used only by startup.sh in container)
-| `Xms`                | minimum JVM memory                          |
-| `Xmx`                | maximum JVM memory                          |
+| ENV                   | Description                                 | Default
+|-----------------------|---------------------------------------------|--------------------------------
+| `CCD_VERSION`         | version of ccd algorithm used to            | 
+|                       | generate input data                         |
+| `CHIPMUNK_ACQUIRED`   | acquired value for requesting aux data      | "1999-01-01/2002-01-01"
+| `CHIPMUNK_HOST`       | base url for lcmap-chipmunk resource        |
+| `COLLECTION`          | collection number of source data            |
+| `FILL_DIFFLC`         | fill between different landcover values     | true                                
+| `FILL_SAMELC`         | fill between same landcover values          | true
+| `HTTP_PORT`           | HTTP port to expose the server at           | 9876
+| `LC_AFTERBREAK`       | confidence value for after break            | 214
+| `LC_AG`               | cover value for agriculture                 | 2
+| `LC_BACK`             | confidence value for fill back              | 213
+| `LC_BARREN`           | cover value for barren                      | 8
+| `LC_DECLINE`          | confidence value for decline                | 152
+| `LC_DEVELOP`          | cover value for developed                   | 1
+| `LC_DIFFLC`           | confidence value for different cover values | 212
+| `LC_FORWARDS`         | confidence value for fill forward           | 202
+| `LC_GRASS`            | cover value for grass                       | 3
+| `LC_GROWTH`           | confidence value for growth                 | 151
+| `LC_NOMODEL`          | confidence value for no model               | 201
+| `LC_NONE`             | cover value for 'none'                      | 0
+| `LC_SAMELC`           | confidence value for same cover values      | 211
+| `LC_SNOW`             | cover value for snow                        | 7
+| `LC_TREE`             | cover value for trees                       | 4
+| `LC_WATER`            | cover value for water                       | 5
+| `LC_WETLAND`          | cover value for wetland                     | 6
+| `LCMAP_ENV`           | to denote 'test' environment for storage    |
+| `NEMO_HOST`           | base url for lcmap-nemo resource            |
+| `NEMO_TIMEOUT`        | timeout value for Nemo requests (ms)        | 2400000
+| `OBSERVATIONS_PATH`   | resource for observations data              |
+| `OBSERVATION_BEGIN`   | first year of processed observations        | 1985
+| `OBSERVATION_END`     | last year of processed observations         | 2017 
+| `PREDICTIONS_PATH`    | resource path for prediction data           |
+| `QUERY_DAY`           | date to calculate product values for        | "07-01"
+| `REGION`              | region abbreviation (cu, ak, hi)            |
+| `RETRY_STRATEGY`      | wait times for subsequent retries [ms,]     | [5000 15000 30000]
+| `SEGMENTS_PATH`       | resource path for segment data              |
+| `STABILITY_BEGIN`     | start of collection data                    | "1982-01-01"
+| `STORAGE_ACCESS_KEY`  | access key for object storage service       |
+| `STORAGE_BUCKET`      | name of the object store bucket to use      |
+| `STORAGE_DESTINATION` | name of object store bucket to persist to   | ${STORAGE_BUCKET}
+| `STORAGE_ENDPOINT`    | url for object storage service              |
+| `STORAGE_LOCATION`    | file system location to place products      |
+| `STORAGE_SECRET_KEY`  | secret key for object storage service       |
+| `TIFF_COMPRESS_COUNT` | simultaneous compression operations         | 2
+| `WORK_DIR`            | dir within container to run the jar,        | /
+|                       | temporary files are kept here               | (used only by startup.sh in container)
+| `Xms`                 | minimum JVM memory                          |
+| `Xmx`                 | maximum JVM memory                          |
 
 ## Local storage considerations
 
