@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<metadata>
+  <tile_metadata>
+    <global_metadata>
+      <data_provider>USGS/EROS</data_provider>
+      <level1_collection><%= collection %></level1_collection>
+      <version><%= version %></version>
+      <region><%= region %></region>
+      <acquisition_date><%= query_date %></acquisition_date>
+      <begin_date><%= begin_date %></begin_date>
+      <end_date><%= end_date %></end_date>
+      <search_date><%= query_date %></search_date>
+      <month_num><%= query_month %></month_num>
+      <record_status>good</record_status>
+      <product_id><%= bundle_name %></product_id>
+      <production_date><%= production_date %></production_date>
+      <checksum><%= bundle_checksum %></checksum>
+        <bounding_coordinates>
+          <west><%= coordinate_west %></west>
+          <east><%= coordinate_east %></east>
+          <north><%= coordinate_north %></north>
+          <south><%= coordinate_south %></south>
+        </bounding_coordinates>
+        <projection_information datum="<%= datum %>" projection="<%= projection %>" units="<%= units %>">
+          <corner_point location="UL" x="<%= ul_x %>" y="<%= ul_y %>"/>
+          <corner_point location="LR" x="<%= lr_x %>" y="<%= lr_y %>"/>
+          <corner_point location="UR" x="<%= lr_x %>" y="<%= ul_y %>"/>
+          <corner_point location="LL" x="<%= ul_x %>" y="<%= lr_y %>"/>
+          <grid_origin>UL</grid_origin>
+          <albers_proj_params>
+            <standard_parallel1><%= standard_parallel1 %></standard_parallel1>
+            <standard_parallel2><%= standard_parallel2 %></standard_parallel2>
+            <central_meridian><%= central_meridian %></central_meridian>
+            <origin_latitude><%= origin_latitude %></origin_latitude>
+            <false_easting><%= false_easting %></false_easting>
+            <false_northing><%= false_northing %></false_northing>
+        </albers_proj_params>
+      </projection_information>
+      <orientation_angle>0.000000</orientation_angle>
+      <tile_grid h="<%= tile_h %>" v="<%= tile_v %>" />
+    </global_metadata>
+  </tile_metadata>
+</metadata>

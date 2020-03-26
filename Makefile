@@ -1,13 +1,42 @@
-TAG:=`head -n 1 project.clj | grep -o '[0-9]*\.[0-9]*\.[0-9]*'`
+.PHONY:= build tests docs deploy login clean
+
 IMAGE:=usgseros/lcmap-gaia
 
-docker-build:
-	lein uberjar
-	docker build -t $(IMAGE):$(TAG) .
+.DEFAULT_GOAL := build
+VERSION    := `./bin/version`
+IMAGE      := eroslab.cr.usgs.gov:4567/lcmap/gaia
+BRANCH     := $(or $(CI_COMMIT_REF_NAME),`git rev-parse --abbrev-ref HEAD`)
+BRANCH     := $(shell echo $(BRANCH) | tr / -)
+SHORT_HASH := `git rev-parse --short HEAD`
+TAG        := $(IMAGE):$(BRANCH)-$(VERSION)-$(SHORT_HASH)
 
-docker-push:
-	docker push $(IMAGE):$(TAG)
 
+# LCMAP Standard Makefile targets.  Do not remove.
 
+build:
+	@docker build -t $(TAG) \
+                      --rm=true \
+                      --compress $(PWD)
 
+tests:  
+	@docker run --rm \
+                    --entrypoint /app/bin/lein-test-entrypoint.sh $(TAG)	
 
+docs:
+	@lein codox
+
+deploy: login
+	docker push $(TAG)
+
+# Extra Makefile targets. Edit at will.
+
+login:
+	@$(if $(and $(CI_REGISTRY_USER), $(CI_REGISTRY_PASSWORD)), \
+          docker login  -u $(CI_REGISTRY_USER) \
+                        -p $(CI_REGISTRY_PASSWORD) \
+                         $(CI_REGISTRY), \
+          docker login eroslab.cr.usgs.gov:4567)
+
+clean:
+	@lein clean
+	@rm -rf docs/

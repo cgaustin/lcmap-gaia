@@ -1,4 +1,4 @@
-(defproject gaia "1.2.1"
+(defproject gaia "1.4.0"
   :description "Level 2 CCDC Product Generation"
   :url "http://github.com/usgs-eros/lcmap-gaia"
   :license {:name "Unlicense"
@@ -27,11 +27,19 @@
                  [org.gdal/gdal             "2.2.0"]
                  [mount                     "0.1.12"]
                  [amazonica                 "0.3.139"]
-                 [listora/again             "1.0.0"]]
+                 [listora/again             "1.0.0"]
+                 [comb                      "0.1.1"]
+                 [digest                    "1.4.9"]]
 
   :plugins [[lein-environ "1.1.0"]]
-  :profiles {:dev     {:dependencies [[org.clojure/test.check "0.9.0"]]}
-             :test    {:resource-paths ["test" "test/resources"] :dependencies [[org.clojure/test.check "0.9.0"]]}
+  :codox {:output-path "docs"}
+  :profiles {:dev     {:plugins [[lein-codox "0.10.7"]]
+                       :dependencies [[org.clojure/test.check "0.9.0"]]}
+             :test    {:jvm-opts ["-Xmx2048m"]
+                       :resource-paths ["test" "test/resources"]
+                       :dependencies [[org.clojure/test.check "0.9.0"]]
+                       :env {:storage-bucket "foo" :storage-destination "bar"}}
              :uberjar {:omit-source true
                        :aot :all}}
+  :repl-options {:port 8081}
   :main lcmap.gaia.main)

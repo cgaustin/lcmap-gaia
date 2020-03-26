@@ -8,7 +8,6 @@
             [ring.util.response :as ring-response]
             [org.httpkit.client :as http]
             [org.httpkit.server :as http-server]
-            [lcmap.gaia.nemo :as nemo]
             [lcmap.gaia.file :as file]
             [lcmap.gaia.change-products :as change-products]
             [lcmap.gaia.cover-products :as cover-products]
@@ -16,6 +15,7 @@
             [lcmap.gaia.config :refer [config]]
             [lcmap.gaia.raster :as raster]
             [lcmap.gaia.storage :as storage]
+            [lcmap.gaia.bundler :as bundler]
             [cheshire.core :as json]))
 
 (defn get-configuration
@@ -84,6 +84,36 @@
   [{:keys [body] :as req}]
   true)
 
+(defn bundle-gen
+  [{:keys [body] :as req}]
+  (log/infof "Received /bundle request with params: %s" body)
+  (try
+    (let [results (bundler/create body)]
+      (hash-map :status 200 :body results))
+
+    (catch Exception e
+      (let [ex_data       (ex-data e)
+            ex_type       (:type ex_data)
+            ex_message    (:message ex_data)
+            message       (.getMessage e)
+            response      (fn [msg details] (hash-map :status 500 :body {:inputs body :message msg :details details}))]
+        (log/errorf "Exception in server/bundle-gen ! args (minus chips): %s - message: %s - data: %s - cause: %s" 
+                    body message ex_data (.getCause e))
+        (cond
+         (= "data-generation-error" ex_type)
+         (response "problem creating data" ex_message)
+
+         (= "data-request-error" ex_type)
+         (response "problem retrieving input data" ex_message)
+
+         :else
+         (response "problem handling this request" "contact HelpDesk"))))))
+
+(defn bundle-fetch
+  [{:keys [body] :as req}]
+  true)
+
+
 (defn healthy
   "Handler for checking application health"
   [request]
@@ -98,7 +128,9 @@
     (compojure/POST  "/product"  [] (product-gen   request))
     (compojure/GET   "/product"  [] (product-fetch request))
     (compojure/POST  "/raster"   [] (raster-gen    request))
-    (compojure/GET   "/raster"   [] (raster-fetch  request))))
+    (compojure/GET   "/raster"   [] (raster-fetch  request))
+    (compojure/POST  "/bundle"   [] (bundle-gen    request))
+    (compojure/GET   "/bundle"   [] (bundle-fetch  request))))
 
 (defn response-handler
   [routes]

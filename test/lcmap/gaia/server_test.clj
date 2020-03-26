@@ -1,7 +1,6 @@
 (ns lcmap.gaia.server-test
   (:require [clojure.test :refer :all]
             [clojure.string :as string]
-            [lcmap.gaia.nemo   :as nemo]
             [lcmap.gaia.raster :as raster]
             [lcmap.gaia.server :as server]
             [lcmap.gaia.test-resources :as tr]))

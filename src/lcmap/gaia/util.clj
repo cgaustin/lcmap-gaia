@@ -5,10 +5,14 @@
             [clojure.string        :as string]
             [clojure.tools.logging :as log]
             [environ.core          :as environ]
+            [clojure.java.io       :as io]
             [java-time             :as jt]
             [org.httpkit.client    :as http]
             [lcmap.gaia.file       :as file]
             [lcmap.gaia.config     :refer [config]]))
+
+(set! *warn-on-reflection* true)
+(set! *unchecked-math* :warn-on-boxed)
 
 (def gregorian_day_one (jt/local-date 0001 1))
 (def date_pattern (re-pattern #"[0-9]{4}-[0-9]{2}-[0-9]{2}"))
@@ -45,7 +49,7 @@
 (defn ordinal-to-javatime
   "Convert an ordinal day on the Gregorian Calendar
   to java-time"
-  [ordinal]
+  [^long ordinal]
   (let [days_from_zero (- ordinal 1)]
     (jt/plus gregorian_day_one (jt/days days_from_zero))))
 
@@ -62,13 +66,23 @@
 
 (defn to-yyyy-mm-dd
   "Convert ordinal value to a YYYY-MM-DD formatted string"
-  [ordinaldate]
+  [^long ordinaldate]
   (-> ordinaldate inc ordinal-to-javatime str))
 
 (defn todays-date
   "Return todays date as a string"
   []
   (str (jt/local-date)))
+
+(defn todays-date-conc
+  "Return todays date in YYYYMMdd format"
+  []
+  (string/replace (todays-date) "-" ""))
+
+(defn todays-year
+  "Return current year"
+  []
+  (first (string/split (todays-date) #"-")))
 
 (defn coll-groups
   "Group collection of hash maps by shared keys values"
@@ -115,7 +129,7 @@
 
 (defn scale-value
   "Return scaling of probability into integer, with a min value of 1"
-  ([value factor]
+  ([^double value ^long factor]
     (let [_prob (* value factor)]
       (if (< _prob 1)
         1
@@ -126,10 +140,10 @@
 (defn mean 
   "Returns the mathematical mean value for a collection of numbers"
   [coll]
-  (let [sum (apply + coll)
-        count (count coll)]
-    (if (pos? count)
-      (float (/ sum count)) 
+  (let [sum (float (apply + coll)) 
+        cnt (int (count coll))]
+    (if (pos? cnt)
+      (float (/ sum cnt)) 
       0)))
 
 ;; add-usr-path and amend-usr-path blatantly ripped off from the
@@ -213,4 +227,30 @@
 (defmacro with-retry
   [expr]
   `(again/with-retries (:retry_strategy config) ~expr))
+
+(defn copy-file [source-path dest-path]
+  (log/infof "copying from: %s to %s" source-path dest-path)
+  (io/copy (io/file source-path) (io/file dest-path)))
+
+(defn delete [file]
+  (log/infof (format "deleting: %s" file))
+  (io/delete-file file true))
+
+(defmulti zero-pad
+  (fn [number pad]
+    (cond (number? number) :number
+          (string? number) :string)))
+
+(defmethod zero-pad :default
+  [number pad] nil)
+
+(defmethod zero-pad :number
+  [number pad]
+  (let [fmt_str (str "%." pad "f")]
+    (format fmt_str (float number))))
+
+(defmethod zero-pad :string
+  [number pad]
+  (zero-pad (read-string number) pad))
+
 

@@ -1,0 +1,47 @@
+image: docker:19.03.1
+
+variables:
+  DOCKER_TLS_CERTDIR: ""
+  DOCKER_DRIVER: overlay2
+  GIT_SSL_NO_VERIFY: "1"
+  
+services:
+  - docker:19.03.1-dind
+
+before_script:
+  - apk update
+  - apk add make curl bash git
+  
+stages:
+  - development
+  - release
+
+development:
+  stage: development
+  script:
+    - make build
+    - make tests
+  tags:
+    - docker
+    - eros
+    - lcmap
+  except:
+    - tags
+    - develop
+    - master
+
+release:
+  stage: release
+  script:
+    - make build
+    - make tests
+    - make deploy
+  tags:
+    - docker
+    - eros
+    - lcmap
+  only:
+    - develop
+    - master
+  except:
+    - tags

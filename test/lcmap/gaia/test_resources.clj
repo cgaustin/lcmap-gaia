@@ -8,9 +8,9 @@
 
 (defn ccdc_map
   [inputs]
-  (let [segments    (get (:segments inputs)    (:pixelxy inputs)) 
+  (let [segments    (get (:segments inputs)    (:pixelxy inputs))
         predictions (get (:predictions inputs) (:pixelxy inputs))]
-    (hash-map {:px (first (:pixelxy inputs)) :py (last (:pixelxy inputs))} 
+    (hash-map {:px (first (:pixelxy inputs)) :py (last (:pixelxy inputs))}
               {:segments segments :predictions predictions})))
 
 (def first_pixel_input (json/decode (slurp "resources/first_pixel_input.json")))
@@ -35,7 +35,7 @@
 (def grass_prob  {"prob" [6.6413847E-8 6.6413847E-8 0.35765457 0.7137938 0.082641214 3.1727698E-9 1.6417161E-8 0.3288632 0.23013946]})
 (def forest_to_grass_probs [(merge first_prob forest_prob) (merge last_prob grass_prob)])
 (def grass_to_forest_probs [(merge first_prob grass_prob) (merge last_prob forest_prob)])
-(def first_segments_matching_predictions (merge first_segments_predictions {:predictions [(merge first_prob forest_prob) 
+(def first_segments_matching_predictions (merge first_segments_predictions {:predictions [(merge first_prob forest_prob)
                                                                                           (merge last_prob {"sday" "2001-10-04", "eday" "2017-09-14", "pday" "2017-09-14"} forest_prob)]}))
 
 (defn cover_data_1086765_1975335
@@ -55,4 +55,23 @@
   ([]
    (cover_data_1086765_1975335 "2010-07-01" 1086765 1975335)))
 
-
+(defn get-wkt
+   []
+   "PROJCS[\"Albers\",\n
+    GEOGCS[\"WGS 84\",\n
+    DATUM[\"WGS_1984\",\n
+    SPHEROID[\"WGS 84\",6378140,298.2569999999957,\n
+    AUTHORITY[\"EPSG\",\"7030\"]],\n
+    AUTHORITY[\"EPSG\",\"6326\"]],\n
+    PRIMEM[\"Greenwich\",0],\n
+    UNIT[\"degree\",0.0174532925199433],\n
+    AUTHORITY[\"EPSG\",\"4326\"]],\n
+    PROJECTION[\"Albers_Conic_Equal_Area\"],\n
+    PARAMETER[\"standard_parallel_1\",29.5],\n
+    PARAMETER[\"standard_parallel_2\",45.5],\n
+    PARAMETER[\"latitude_of_center\",23],\n
+    PARAMETER[\"longitude_of_center\",-96],\n
+    PARAMETER[\"false_easting\",0],\n
+    PARAMETER[\"false_northing\",0],\n
+    UNIT[\"metre\",1,\n
+    AUTHORITY[\"EPSG\",\"9001\"]]]")

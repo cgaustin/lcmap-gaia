@@ -10,6 +10,8 @@
   "Return the url for requesting chip data for a given ubid, x, and y"
   ([host ubid x y acquired]
    (str host "/chips?ubid=" ubid "&x=" x "&y=" y "&acquired=" acquired))
+  ([host ubid x y]
+   (chips_url host ubid x y (:chipmunk_acquired config)))
   ([ubid x y]
    (chips_url (:chipmunk_host config) ubid x y (:chipmunk_acquired config))))
 
@@ -48,3 +50,13 @@
   (let [values (util/with-retry (nlcd x y)) 
         mask (nlcd_mask values)]
     {:mask mask :values values}))
+
+(defn grid-wkt
+  "Return the projection WKT for the regions grid"
+  []
+  (let [url (str (:chipmunk_host config) "/grid")
+        response @(http/get url)
+        tile_filter #(filter (fn [i] (= "tile" (get i "name"))) %)
+        tile_json (-> response :body json/decode tile_filter first)]
+    (get tile_json "proj")))
+
