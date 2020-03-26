@@ -145,7 +145,7 @@ The classification component of CCDC involves using the coefficients of time ser
     </posacc>
     <lineage>
     <procstep>
-        <procdesc>An Algorithm Description Document (ADD) for the LCMAP implementation of CCDC Collection v1.0 can be found at: https://www.usgs.gov/land-resources/eros/lcmap</procdesc>
+        <procdesc>An Algorithm Description Document (ADD) for the LCMAP implementation of CCDC Collection v1.0 can be found at: https://www.usgs.gov/media/files/lcmap-ccdc-add</procdesc>
         <procdate>Unknown</procdate>
       </procstep>
       <procstep>
