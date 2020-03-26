@@ -21,8 +21,6 @@ export CHIPMUNK_HOST="http://awesomehost.org/chipmunk"
 export CHIPMUNK_ACQUIRED="1999-01-01/2002-01-01"
 export COLLECTION="01"
 export HTTP_PORT=9876
-export NEMO_HOST="http://awesomehost.org/nemo"
-export NEMO_TIMEOUT=2400000
 export OBSERVATIONS_PATH="/chip"
 export PREDICTIONS_PATH="/conus_predictions"
 export QUERY_DAY="07-01"
@@ -42,7 +40,6 @@ docker run -p 9876:${HTTP_PORT} -e CCD_VERSION=${CCD_VERSION} \
                                 -e CHIPMUNK_ACQUIRED=${CHIPMUNK_ACQUIRED} \
                                 -e CHIPMUNK_HOST=${CHIPMUNK_HOST} \
                                 -e HTTP_PORT=${HTTP_PORT} \
-                                -e NEMO_HOST=${NEMO_HOST} \
                                 -e PREDICTIONS_PATH=${PREDICTIONS_PATH} \
                                 -e SEGMENTS_PATH=${SEGMENTS_PATH} \
                                 -e STORAGE_ENDPOINT=${STORAGE_ENDPOINT} \
@@ -89,8 +86,6 @@ Gaia is configured using these environment variables:
 | `LC_WATER`            | cover value for water                       | 5
 | `LC_WETLAND`          | cover value for wetland                     | 6
 | `LCMAP_ENV`           | to denote 'test' environment for storage    |
-| `NEMO_HOST`           | base url for lcmap-nemo resource            |
-| `NEMO_TIMEOUT`        | timeout value for Nemo requests (ms)        | 2400000
 | `OBSERVATIONS_PATH`   | resource for observations data              |
 | `OBSERVATION_BEGIN`   | first year of processed observations        | 1985
 | `OBSERVATION_END`     | last year of processed observations         | 2017 

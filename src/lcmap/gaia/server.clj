@@ -8,7 +8,6 @@
             [ring.util.response :as ring-response]
             [org.httpkit.client :as http]
             [org.httpkit.server :as http-server]
-            [lcmap.gaia.nemo :as nemo]
             [lcmap.gaia.file :as file]
             [lcmap.gaia.change-products :as change-products]
             [lcmap.gaia.cover-products :as cover-products]

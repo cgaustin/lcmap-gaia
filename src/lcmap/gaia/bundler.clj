@@ -8,7 +8,6 @@
             [lcmap.gaia.config     :refer [config]]
             [lcmap.gaia.file       :as file]
             [lcmap.gaia.gdal       :as gdal]
-            [lcmap.gaia.nemo       :as nemo]
             [lcmap.gaia.raster     :as raster]
             [lcmap.gaia.storage    :as storage]
             [lcmap.gaia.util       :as util]
