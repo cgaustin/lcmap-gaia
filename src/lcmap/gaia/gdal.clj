@@ -16,8 +16,7 @@
            [org.gdal.gdalconst gdalconst]
            [org.gdal.gdalconst gdalconstJNI]
            [org.gdal.osr SpatialReference]
-           [org.gdal.osr CoordinateTransformation]
-))
+           [org.gdal.osr CoordinateTransformation]))
 
 ;; init and state constructs blatantly ripped off from the
 ;; USGS-EROS/lcmap-chipmunk project on GitHub, created by

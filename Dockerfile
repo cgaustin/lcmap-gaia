@@ -8,6 +8,5 @@ COPY resources/log4j.properties /log4j.properties
 COPY target/gaia-*-standalone.jar /
 COPY startup.sh /
 RUN chmod +x startup.sh
-ENV GTIFF_IGNORE_READ_ERRORS True
-
+CMD ./startup.sh
 

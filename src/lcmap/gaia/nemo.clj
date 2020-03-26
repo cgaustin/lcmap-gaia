@@ -52,10 +52,7 @@
           (throw (ex-info "Error requesting chip data for observations data from Nemo" {:type "data-request-error"
                                                                                         :message "non-200 response from nemo for predictions data"
                                                                                         :status (:status response) 
-                                                                                        :url url})))))
-
-
-)
+                                                                                        :url url}))))))
 
 (defn segments-sorted
   [x y key]
