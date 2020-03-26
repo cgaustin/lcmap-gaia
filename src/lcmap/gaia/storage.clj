@@ -132,15 +132,6 @@
   [bucket]
   (s3/delete-bucket client-config :bucket-name bucket))
 
-(defn drop_bucket_nuclear
-  [bucket]
-  (while (not (empty? (list_bucket_contents bucket)))
-    (do
-      (doseq [object (list_bucket_contents bucket)]
-        (drop_object bucket object))))
-  (drop_bucket bucket)
-  true)
-
 (defn get_json
   [bucket jsonpath]
   (try
