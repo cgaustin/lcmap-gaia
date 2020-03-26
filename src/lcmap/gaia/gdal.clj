@@ -1,13 +1,22 @@
 (ns lcmap.gaia.gdal
-  (:require [mount.core :as mount]
+  (:require [cheshire.core :as json]
+            [mount.core :as mount]
+            [clojure.java.io :as io]
             [lcmap.gaia.util :as util]
-            [clojure.tools.logging :as log])
-  (:import [org.gdal.gdal gdal]
+            [lcmap.gaia.chipmunk :as chipmunk]
+            [clojure.string :as string]
+            [clojure.tools.logging :as log]
+            [clojure.java.shell :refer [sh]]
+            [clojure.walk :refer [keywordize-keys]])
+  (:import [java.util Vector]
+           [org.gdal.gdal gdal]
            [org.gdal.gdal Driver]
            [org.gdal.gdal Dataset]
            [org.gdal.gdal ColorTable]
            [org.gdal.gdalconst gdalconst]
-           [org.gdal.gdalconst gdalconstJNI]))
+           [org.gdal.gdalconst gdalconstJNI]
+           [org.gdal.osr SpatialReference]
+           [org.gdal.osr CoordinateTransformation]))
 
 ;; init and state constructs blatantly ripped off from the
 ;; USGS-EROS/lcmap-chipmunk project on GitHub, created by
@@ -59,6 +68,28 @@
 (def int16   (gdalconstJNI/GDT_UInt16_get))
 (def float32 (gdalconstJNI/GDT_Float32_get))
 
+(defn geographic-coords
+  "Return the WGS 84 coordinates for the projected coordinate pair"
+  [[x y]]
+  (let [proj_wkt (chipmunk/grid-wkt)
+        proj_ref (SpatialReference. proj_wkt) 
+        geog_ref (SpatialReference.)
+        geog_set (.ImportFromEPSG geog_ref 4326)
+        trns_frm (CoordinateTransformation. proj_ref geog_ref)
+        coords   (.TransformPoint trns_frm x y)]
+    (vector (first coords) (second coords))))
+
+(defn info
+  [name]
+  (let [output (sh "gdalinfo" "-json" name)]
+    (-> output :out json/decode keywordize-keys)))
+
+(defn compressed?
+  [name]
+  (let [info (info name)
+        compressed (get-in info [:metadata :IMAGE_STRUCTURE :COMPRESSION])]
+    (some? compressed)))
+
 (defn create_colortable
   [value_colors]
   (let [ct (ColorTable.)]
@@ -102,4 +133,36 @@
          (throw (ex-info msg {:type "data-generation-error" :message msg} (.getCause e)))))))
   ([tiff_name values x_offset y_offset]
    (update_geotiff tiff_name values x_offset y_offset 100 100)))
+
+(defn compress_geotiff
+  [input]
+  (let [tmp_tif (string/replace input #".tif" "_working.tif")
+        translate (sh "gdal_translate" input tmp_tif "-co" "COMPRESS=DEFLATE" "-co" "ZLEVEL=9" "-co" "TILED=YES" "-co" "PREDICTOR=2")
+        remove (sh "rm" input)
+        move (sh "mv" tmp_tif input)]
+    (if (= 0 (:exit translate) (:exit remove) (:exit move))
+      (log/infof (format "Sucessfully compressed: %s" input))
+      (do ; fail 
+        (let [msg (format "Error compressing tif: %s , translate: %s, remove: %s,  move: %s" input (:err translate) (:err remove) (:err move))]
+            (throw (ex-info msg {:type "data-generation-error" :message msg})))))))
+
+(defn generate-cog
+  [input output]
+  (try
+   (let [step1 (sh "gdal_translate" input "working.tif" "-co" "TILED=YES" "-co" "COMPRESS=DEFLATE")
+         step2 (sh "gdaladdo" "-ro" "-r" "average" "working.tif" "2" "4" "8")
+         step3 (sh "gdal_translate" "working.tif" output "-co" "TILED=YES" "-co" 
+                   "COMPRESS=DEFLATE" "-co" "COPY_SRC_OVERVIEWS=YES" "-co" "BLOCKXSIZE=512" "-co" 
+                   "BLOCKYSIZE=512" "--config" "GDAL_TIFF_OVR_BLOCKSIZE" "512")
+         failed (filter (fn [i] (= 1 (:exit i))) [step1 step2 step3])]
+     
+     (if (empty? failed)
+       output
+       (let [errors (map :err failed)
+             msg (format "problem with gdal utilities: %s" errors)]
+         (throw (ex-info msg {:type "data-generation-error"})))))
+  (catch Exception e
+    (let [msg (format "problem generating COG - input: %s  output: %s, message: %s" input output (.getMessage e))]
+      (log/error msg)
+      (throw (ex-info msg {:type "data-generation-error" :message msg} (.getCause e)))))))
 

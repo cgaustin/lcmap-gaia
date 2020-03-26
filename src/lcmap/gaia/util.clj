@@ -5,6 +5,7 @@
             [clojure.string        :as string]
             [clojure.tools.logging :as log]
             [environ.core          :as environ]
+            [clojure.java.io       :as io]
             [java-time             :as jt]
             [org.httpkit.client    :as http]
             [lcmap.gaia.file       :as file]
@@ -72,6 +73,16 @@
   "Return todays date as a string"
   []
   (str (jt/local-date)))
+
+(defn todays-date-conc
+  "Return todays date in YYYYMMdd format"
+  []
+  (string/replace (todays-date) "-" ""))
+
+(defn todays-year
+  "Return current year"
+  []
+  (first (string/split (todays-date) #"-")))
 
 (defn coll-groups
   "Group collection of hash maps by shared keys values"
@@ -216,4 +227,30 @@
 (defmacro with-retry
   [expr]
   `(again/with-retries (:retry_strategy config) ~expr))
+
+(defn copy-file [source-path dest-path]
+  (log/infof "copying from: %s to %s" source-path dest-path)
+  (io/copy (io/file source-path) (io/file dest-path)))
+
+(defn delete [file]
+  (log/infof (format "deleting: %s" file))
+  (io/delete-file file true))
+
+(defmulti zero-pad
+  (fn [number pad]
+    (cond (number? number) :number
+          (string? number) :string)))
+
+(defmethod zero-pad :default
+  [number pad] nil)
+
+(defmethod zero-pad :number
+  [number pad]
+  (let [fmt_str (str "%." pad "f")]
+    (format fmt_str (float number))))
+
+(defmethod zero-pad :string
+  [number pad]
+  (zero-pad (read-string number) pad))
+
 

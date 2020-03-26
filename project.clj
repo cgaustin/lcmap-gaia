@@ -1,4 +1,4 @@
-(defproject gaia "1.3.0"
+(defproject gaia "1.4.0"
   :description "Level 2 CCDC Product Generation"
   :url "http://github.com/usgs-eros/lcmap-gaia"
   :license {:name "Unlicense"
@@ -27,7 +27,9 @@
                  [org.gdal/gdal             "2.2.0"]
                  [mount                     "0.1.12"]
                  [amazonica                 "0.3.139"]
-                 [listora/again             "1.0.0"]]
+                 [listora/again             "1.0.0"]
+                 [comb                      "0.1.1"]
+                 [digest                    "1.4.9"]]
 
   :plugins [[lein-environ "1.1.0"]]
   :codox {:output-path "docs"}
@@ -39,4 +41,5 @@
                        :env {:storage-bucket "foo" :storage-destination "bar"}}
              :uberjar {:omit-source true
                        :aot :all}}
+  :repl-options {:port 8081}
   :main lcmap.gaia.main)

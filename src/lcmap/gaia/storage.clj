@@ -7,7 +7,8 @@
             [cheshire.core :as json]
             [org.httpkit.client :as http]
             [amazonica.aws.s3 :as s3]
-            [java-time :as jt]))
+            [java-time :as jt])
+  (:import [com.amazonaws.services.s3.model CannedAccessControlList]))
 
 (set! *warn-on-reflection* true)
 (set! *unchecked-math* :warn-on-boxed)
@@ -78,7 +79,6 @@
          byte_stream (java.io.ByteArrayInputStream. byte_data)
          metadata {:content-length (count byte_data) :content-type "application/json"}
          keyname (str (:prefix output_path) "/" (:name output_path))]
-
     (try
        (s3/put-object client-config :bucket-name bucket :key keyname :input-stream byte_stream :metadata metadata)
        true
@@ -107,6 +107,23 @@
   ([filepath filelocation]
    (put_tiff dest_bucket filepath filelocation)))
 
+(defn put-file
+  [keyname filelocation]
+  (log/infof (format "storage/put-file keyname: %s  filelocation: %s" keyname filelocation))
+  (try
+    (let [content_types (hash-map :tiff "image/tiff" :xml "application/xml" :json "application/json")
+          type_keyword (-> filelocation (string/split #"\.") last keyword)
+          javafile (java.io.File. filelocation)
+          content-length (.length javafile)
+          metadata {:content-length content-length :content-type (type_keyword content_types)}
+          acl {:grant-permission ["AllUsers" "Read"]}]
+      (s3/put-object client-config :bucket-name dest_bucket :key keyname  :file javafile :metadata metadata :access-control-list acl)
+      true)
+    (catch Exception e
+      (let [msg (format "problem putting file %s to ceph: %s" keyname (.getMessage e))]
+        (log/error msg)
+        (throw (ex-info msg {:type "data-request-error" :message msg} (.getCause e)))))))
+
 (defn drop_object
   [bucket filename]
   (s3/delete-object client-config :bucket-name bucket :key filename))
@@ -114,15 +131,6 @@
 (defn drop_bucket
   [bucket]
   (s3/delete-bucket client-config :bucket-name bucket))
-
-(defn drop_bucket_nuclear
-  [bucket]
-  (while (not (empty? (list_bucket_contents bucket)))
-    (do
-      (doseq [object (list_bucket_contents bucket)]
-        (drop_object bucket object))))
-  (drop_bucket bucket)
-  true)
 
 (defn get_json
   [bucket jsonpath]
@@ -136,8 +144,17 @@
         (throw (ex-info msg {:type "data-request-error" :message msg} (.getCause e)))))))
 
 (defn get_url
-  [bucket keyname]
-  (str (:storage-endpoint config) "/" bucket "/" keyname))
+  ([bucket keyname]
+     (str (:storage-endpoint config) "/" bucket "/" keyname))
+  ([keyname]
+   (get_url source_bucket keyname)))
+
+(defn set_public_acl
+  ([bucket keyname]
+   (s3/set-object-acl client-config bucket keyname CannedAccessControlList/PublicRead)
+   (get_url bucket keyname))
+  ([keyname]
+   (set_public_acl source_bucket keyname)))
 
 (defn parse_body
   [http_response]
@@ -174,6 +191,52 @@
 (defn segments-sorted
   [x y key]
   (util/sort-by-key (segments x y) key))
+
+(defn tif_production_date
+  "Extract production date from full object key name"
+  [keyname]                                    ; raster/2009/CU/029/006/cover/<lcmap_tif>.tif 
+  (let [tif (last (string/split keyname #"/")) ; LCMAP-CU-029006-2009-20190924-V01-LCPRI.tif
+        elements (string/split tif #"-")]      ; ["LCMAP" "CU" "029006" "2009" "20190924" "V01" "LCPRI.tif"]
+     (nth elements 4)))
+
+(defn latest_tif
+  "Return the most recent product by production date"
+  [tifs product_detail]
+  (let [key      (key product_detail)
+        vals     (val product_detail)
+        abbr     (:abbr vals)
+        filtered (filter (fn [i] (string/includes? i abbr)) tifs)
+        sorted   (sort-by tif_production_date filtered)
+        latest   (last sorted)
+        name     (-> latest (string/split #"/") last)
+        url      (get_url latest)]
+    (merge vals {:object-key latest :name name :url url})))
+
+(defn latest_tile_tifs
+  "Return collection of most recently produced tifs from the object store
+  for a given year and tile"
+  [date tile product_details]
+  (let [year   (first (string/split date #"-"))
+        region (:region config)
+        hhh    (subs tile 0 3)
+        vvv    (subs tile 3 6)
+        base   (format "raster/%s/%s/%s/%s/" year region hhh vvv)   ; raster/2009/CU/029/006/
+        prefixes (map (fn [i] (str base i "/")) ["cover" "change"]) ; ["raster/2009/CU/029/006/cover/" ...]
+        objects  (flatten (map (fn [i] (list_bucket_contents source_bucket i)) prefixes))] ; collection of object keys
+    (doall (map (fn [i] (latest_tif objects i)) product_details)))) ; return hash-map like product_details, but with new :object-key key/value
+
+(defn chip                                                                                                                            
+  "Return /chip data for a cx cy pair"
+  [cx cy] 
+  (let [url (str (:endpoint client-config) "/" source_bucket "/chip/" (int cx) "-" (int cy) ".json")
+        response @(http/get url)]
+    (if (= 200 (:status response))
+      (first (parse_body response))
+      (do (log/debugf "Error requesting chip data from Ceph - url: %s  response: %s" url response)
+          (throw (ex-info "Error requesting chip data from Ceph" {:type "data-request-error"
+                                                                  :message "non-200 response from Ceph for chip data"
+                                                                  :status (:status response) 
+                                                                  :url url}))))))
 
 (defn init
   "Create bucket in object storage"

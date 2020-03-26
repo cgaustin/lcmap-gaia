@@ -4,10 +4,7 @@
             [clojure.string        :as string]
             [lcmap.gaia.config     :refer [config]]
             [lcmap.gaia.chipmunk   :as chipmunk]
-            [lcmap.gaia.file       :as file]
             [lcmap.gaia.gdal       :as gdal]
-            [lcmap.gaia.nemo       :as nemo]
-            [lcmap.gaia.change-products :as products]
             [lcmap.gaia.storage    :as storage]
             [lcmap.gaia.util       :as util]))
 
@@ -54,23 +51,22 @@
 
 (def product_details
   "Associate product name with its official abbreviation and data type"
-  (hash-map "primary-landcover"    {:abbr "LCPRI"   :type gdal/int8}              
-            "secondary-landcover"  {:abbr "LCSEC"   :type gdal/int8}            
-            "primary-confidence"   {:abbr "LCPCONF" :type gdal/int8}  
-            "secondary-confidence" {:abbr "LCSCONF" :type gdal/int8} 
-            "annual-change"        {:abbr "LCACHG"  :type gdal/int8} 
-            "time-of-change"       {:abbr "SCTIME"  :type gdal/int16}                
-            "magnitude-of-change"  {:abbr "SCMAG"   :type gdal/float32}            
-            "time-since-change"    {:abbr "SCLAST"  :type gdal/int16}              
-            "curve-fit"            {:abbr "SCMQA"   :type gdal/int8}                     
-            "length-of-segment"    {:abbr "SCSTAB"  :type gdal/int16}))
+  (hash-map "primary-landcover"    {:abbr "LCPRI"   :type gdal/int8    :metadata-template "templates/lcpri_template.xml"}
+            "secondary-landcover"  {:abbr "LCSEC"   :type gdal/int8    :metadata-template "templates/lcsec_template.xml"}
+            "primary-confidence"   {:abbr "LCPCONF" :type gdal/int8    :metadata-template "templates/lcpriconf_template.xml"}
+            "secondary-confidence" {:abbr "LCSCONF" :type gdal/int8    :metadata-template "templates/lcsecconf_template.xml"}
+            "annual-change"        {:abbr "LCACHG"  :type gdal/int8    :metadata-template "templates/lcchg_template.xml"}
+            "time-of-change"       {:abbr "SCTIME"  :type gdal/int16   :metadata-template "templates/sctime_template.xml"}
+            "magnitude-of-change"  {:abbr "SCMAG"   :type gdal/float32 :metadata-template "templates/scmag_template.xml"}
+            "time-since-change"    {:abbr "SCLAST"  :type gdal/int16   :metadata-template "templates/sclast_template.xml"}
+            "curve-fit"            {:abbr "SCMQA"   :type gdal/int8    :metadata-template "templates/scmqa_template.xml"}
+            "length-of-segment"    {:abbr "SCSTAB"  :type gdal/int16   :metadata-template "templates/scstab_template.xml"}))
 
 (defn get-products
   "Retrieve product details based on type"
   [type]
-  (if (= type "cover")
-    (filter #(re-matches #"LC(.*)" (:abbr (last %))) product_details)
-    (filter #(re-matches #"SC(.*)" (:abbr (last %))) product_details)))
+  (let [pattern (if (= type "cover") #"LC(.*)" #"SC(.*)")]
+    (filter #(re-matches pattern (:abbr (last %))) product_details)))
 
 (defn is-landcover
   "Return True if name is a landcover product"
@@ -88,11 +84,13 @@
         data_product (first product_info)
         product_abbr (:abbr (last product_info)) 
         elements ["LCMAP" grid tileid repr_year production_date ccd_ver product_abbr]
-        name (str (string/join "-" elements) ".tif")
+        stored_name (str (string/join "-" elements) ".tif")
+        output_name (string/replace stored_name #"-" "_") ; CEPH prohibits underscores
         prefix (storage/get-prefix grid date tileid "raster" product)
-        url (storage/get_url storage/dest_bucket (str prefix "/" name))
-        type (:type (last product_info))]
-    {:name name :prefix prefix :url url :data-type type :data-product data_product}))
+        url (storage/get_url storage/dest_bucket (str prefix "/" stored_name))
+        type (:type (last product_info))
+        metadata-template (:metadata-template (last product_info))]
+    {:name output_name :prefix prefix :url url :data-type type :data-product data_product :metadata-template metadata-template}))
 
 (defn calc_offset
   "Returns pixel offset for UL coordinates of chips"
@@ -178,3 +176,11 @@
               msg (format "problem creating rasters %s: %s" names (.getMessage e))]
           (log/error msg)
           (throw (ex-info msg {:type "data-generation-error" :message msg})))))))
+
+(defn rasters-details
+  [tileid date]
+  (let [cover_info     (get-products "cover")
+        change_info    (get-products "change")
+        cover_details  (map #(map-details tileid % date "cover") cover_info)
+        change_details (map #(map-details tileid % date "change") change_info)]
+    (concat cover_details change_details)))
