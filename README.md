@@ -106,6 +106,7 @@ Gaia is configured using these environment variables:
 | `STORAGE_ENDPOINT`   | url for object storage service              |
 | `STORAGE_LOCATION`   | file system location to place products      |
 | `STORAGE_SECRET_KEY` | secret key for object storage service       |
+| `TIFF_COMPRESS_COUNT`| simultaneous compression operations         | 2
 | `WORK_DIR`           | dir within container to run the jar,        | /
 |                      | temporary files are kept here               | (used only by startup.sh in container)
 | `Xms`                | minimum JVM memory                          |

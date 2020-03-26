@@ -154,7 +154,7 @@
 
 (defn validate-tifs
   [details]
-  (let [chunk-size 2
+  (let [chunk-size (:tiff-compress-count config)
         in-chan (async/chan)
         out-chan (async/chan)
         consumers (start-consumers chunk-size in-chan out-chan)
