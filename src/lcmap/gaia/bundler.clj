@@ -269,7 +269,7 @@
           tiff_details  (storage/latest_tile_tifs date tile raster/product_details)
           tiff_names   (map :name tiff_details)
           xml_names    (map (fn [i] (string/replace i #".tif" ".xml")) tiff_names)
-          all_names    (concat tiff_names (vals output_names))
+          all_names    (concat xml_names tiff_names (vals output_names))
           testing      (if (= (:lcmap-env config) "test") true false)]
 
       (log/infof "received request to create bundle with params: %s" all)
