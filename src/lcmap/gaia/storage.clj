@@ -222,8 +222,9 @@
         vvv    (subs tile 3 6)
         base   (format "raster/%s/%s/%s/%s/" year region hhh vvv)   ; raster/2009/CU/029/006/
         prefixes (map (fn [i] (str base i "/")) ["cover" "change"]) ; ["raster/2009/CU/029/006/cover/" ...]
-        objects  (flatten (map (fn [i] (list_bucket_contents source_bucket i)) prefixes))] ; collection of object keys
-    (doall (map (fn [i] (latest_tif objects i)) product_details)))) ; return hash-map like product_details, but with new :object-key key/value
+        objects  (flatten (map (fn [i] (list_bucket_contents source_bucket i)) prefixes))
+        tiffs  (filter (fn [i] (string/includes? i ".tif")) objects)]    ; collection of object keys
+    (doall (map (fn [i] (latest_tif tiffs i)) product_details)))) ; return hash-map like product_details, but with new :object-key key/value
 
 (defn chip                                                                                                                            
   "Return /chip data for a cx cy pair"
