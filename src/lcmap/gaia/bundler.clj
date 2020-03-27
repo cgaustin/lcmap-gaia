@@ -14,9 +14,9 @@
             [digest                :as digest]))
 
 (defn download
-  [url name]
-  (let [in (io/input-stream url)
-        out (io/output-stream name)]
+  [url dest]
+  (with-open [in (io/input-stream url)
+              out (io/output-stream dest)]
     (io/copy in out)))
 
 (defn get-metadata-values
