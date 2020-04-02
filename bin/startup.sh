@@ -12,12 +12,11 @@ if [ -z ${WORK_DIR} ]
 fi
 
 chown ${BUNDLE_USER}:${BUNDLE_USER} ${WORK_DIR}
-su ${BUNDLE_USER}
 
 cd ${WORK_DIR}
 cp -r /app/templates .
 
 echo "working from: ${WORK_DIR}, as user: ${BUNDLE_USER}..."
 
-su ${BUNDLE_USER} -c 'java -server -Xms$Xms -Xmx$Xmx -XX:+UseG1GC -jar /app/target/gaia-$version-standalone.jar'
+su ${BUNDLE_USER} -c "java -server -Xms$Xms -Xmx$Xmx -XX:+UseG1GC -jar /app/target/gaia-$version-standalone.jar"
 
