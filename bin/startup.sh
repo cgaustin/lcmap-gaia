@@ -19,4 +19,5 @@ cp -r /app/templates .
 
 echo "working from: ${WORK_DIR}, as user: ${BUNDLE_USER}..."
 
-java -server -Xms$Xms -Xmx$Xmx -XX:+UseG1GC -jar /app/target/gaia-$version-standalone.jar
+su ${BUNDLE_USER} -c 'java -server -Xms$Xms -Xmx$Xmx -XX:+UseG1GC -jar /app/target/gaia-$version-standalone.jar'
+
