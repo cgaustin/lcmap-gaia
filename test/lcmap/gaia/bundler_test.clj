@@ -15,10 +15,13 @@
             :coordinateSystem {:wkt (tr/get-wkt)}))
 
 (deftest test-download
-  (with-redefs [io/input-stream (fn [i] (str i))
-                io/output-stream (fn [i] (str i))
-                io/copy (fn [a b] (str a "-" b))]
-    (is (= "foo-bar" (bundler/download "foo" "bar")))))
+    (spit "foo.txt" "some foo")
+    (bundler/download "foo.txt" "bar.txt")
+    (is (= "some foo" (slurp "bar.txt")))
+    ; cleanup
+    (io/delete-file "foo.txt")
+    (io/delete-file "bar.txt"))
+
 
 (deftest test-get-metadata-values
   (with-redefs [gdal/info (fn [i] (get-layer-info))
