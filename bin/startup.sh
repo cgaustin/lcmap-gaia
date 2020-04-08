@@ -4,6 +4,8 @@ version=`bin/version`
 if [ -z ${BUNDLE_USER} ]
   then
     export BUNDLE_USER=root
+else
+  useradd -u ${BUNDLE_USER_ID} ${BUNDLE_USER}
 fi
 
 if [ -z ${WORK_DIR} ]

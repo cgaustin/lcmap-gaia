@@ -60,6 +60,9 @@ Gaia is configured using these environment variables:
 
 | ENV                   | Description                                 | Default
 |-----------------------|---------------------------------------------|--------------------------------
+| `BUNDLE_USER`         | optional user added to the container to own | 
+|                       | generated files                             | root
+| `BUNDLE_USER_ID`      | userid for optional BUNDLE_USER             |
 | `CCD_VERSION`         | version of ccd algorithm used to            | 
 |                       | generate input data                         |
 | `CHIPMUNK_ACQUIRED`   | acquired value for requesting aux data      | "1999-01-01/2002-01-01"
