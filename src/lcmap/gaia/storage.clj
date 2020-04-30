@@ -78,9 +78,10 @@
          byte_data (.getBytes encoded_data)
          byte_stream (java.io.ByteArrayInputStream. byte_data)
          metadata {:content-length (count byte_data) :content-type "application/json"}
-         keyname (str (:prefix output_path) "/" (:name output_path))]
+         keyname (str (:prefix output_path) "/" (:name output_path))
+         acl {:grant-permission ["AllUsers" "Read"]}]
     (try
-       (s3/put-object client-config :bucket-name bucket :key keyname :input-stream byte_stream :metadata metadata)
+       (s3/put-object client-config :bucket-name bucket :key keyname :input-stream byte_stream :metadata metadata :access-control-list acl)
        true
        (catch Exception e
          (let [msg (format "problem putting object json %s: %s" keyname (.getMessage e))]
