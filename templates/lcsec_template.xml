@@ -207,6 +207,7 @@ The classification component of CCDC involves using the coefficients of time ser
         <enttypd>LCMAP Land Cover and Land Change Products</enttypd>
         <enttypds>U.S. Geological Survey</enttypds>
       </enttyp>
+       <attr>
         <attrlabl>LCSEC</attrlabl>
         <attrdef>Secondary Land Cover. Classification consisting of eight general land cover classes.</attrdef>
         <attrdefs>Producer Defined</attrdefs>
@@ -266,6 +267,7 @@ The classification component of CCDC involves using the coefficients of time ser
             <edomvds>LCMAP Legend Land Cover Class Descriptions</edomvds>
           </edom>
         </attrdomv>
+      </attr>
     </detailed>
   </eainfo>
   <distinfo>
