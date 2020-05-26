@@ -8,7 +8,8 @@
             [clojure.tools.logging :as log]
             [clojure.java.shell :refer [sh]]
             [clojure.walk :refer [keywordize-keys]])
-  (:import [java.util Vector]
+  (:import [java.io File]
+           [java.util Vector]
            [org.gdal.gdal gdal]
            [org.gdal.gdal Driver]
            [org.gdal.gdal Dataset]
@@ -72,7 +73,8 @@
   "Return the WGS 84 coordinates for the projected coordinate pair"
   [[x y]]
   (let [proj_wkt (chipmunk/grid-wkt)
-        proj_ref (SpatialReference. proj_wkt) 
+        proj_ref (SpatialReference.)
+        proj_set (.ImportFromWkt proj_ref proj_wkt) 
         geog_ref (SpatialReference.)
         geog_set (.ImportFromEPSG geog_ref 4326)
         trns_frm (CoordinateTransformation. proj_ref geog_ref)
@@ -149,13 +151,16 @@
 (defn generate-cog
   [input output]
   (try
-   (let [step1 (sh "gdal_translate" input "working.tif" "-co" "TILED=YES" "-co" "COMPRESS=DEFLATE")
-         step2 (sh "gdaladdo" "-ro" "-r" "average" "working.tif" "2" "4" "8")
-         step3 (sh "gdal_translate" "working.tif" output "-co" "TILED=YES" "-co" 
+   (let [working_file (-> input (string/split #".tif") first (File/createTempFile ".tif"))
+         working_path (.getAbsolutePath working_file)
+         step1 (sh "gdal_translate" input working_path "-co" "TILED=YES" "-co" "COMPRESS=DEFLATE")
+         step2 (sh "gdaladdo" "-ro" "-r" "average" working_path "2" "4" "8")
+         step3 (sh "gdal_translate" working_path output "-co" "TILED=YES" "-co" 
                    "COMPRESS=DEFLATE" "-co" "COPY_SRC_OVERVIEWS=YES" "-co" "BLOCKXSIZE=512" "-co" 
                    "BLOCKYSIZE=512" "--config" "GDAL_TIFF_OVR_BLOCKSIZE" "512")
-         failed (filter (fn [i] (= 1 (:exit i))) [step1 step2 step3])]
-     
+         step4 (sh "rm" working_path (str working_path ".ovr"))
+         failed (filter (fn [i] (= 1 (:exit i))) [step1 step2 step3 step4])]
+
      (if (empty? failed)
        output
        (let [errors (map :err failed)
