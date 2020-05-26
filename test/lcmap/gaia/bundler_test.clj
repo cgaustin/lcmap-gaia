@@ -11,7 +11,7 @@
 
 (defn get-layer-info
   []
-  (hash-map :cornerCoordinates {:upperLeft [111 333] :lowerRight [222 444]}
+  (hash-map :cornerCoordinates {:upperLeft [111 333] :upperRight [112 334] :lowerRight [222 444] :lowerLeft [221 443]}
             :coordinateSystem {:wkt (tr/get-wkt)}))
 
 (deftest test-download
@@ -60,8 +60,7 @@
                 util/todays-year (fn [] "1984")
                 util/todays-date-conc (fn [] "20200324")
                 bundler/sha256 (fn [i] "666")
-                config (merge config {:ccd_ver "01"})
-                ]
+                config (merge config {:ccd_ver "01"})]
     (is (= (bundler/get-bundle-values "111222" "2007-07-01" "bundle.tar" "foo.tif")
            {:standard_parallel2 "45.500000",
             :false_northing "0.000000",
@@ -77,7 +76,7 @@
             :ul_x "111.000000",
             :region nil,
             :origin_latitude "23.000000",
-            :coordinate_south "443.0000000000",
+            :coordinate_south "442.0000000000",
             :begin_date "2007-01-01",
             :lr_x "222.000000",
             :end_date "2007-12-31",
@@ -88,7 +87,7 @@
             :ul_y "333.000000",
             :version "01",
             :collection "01",
-            :coordinate_north "332.0000000000",
+            :coordinate_north "333.0000000000",
             :projection "AEA",
             :coordinate_east "223.0000000000",
             :false_easting "0.000000"}))))
