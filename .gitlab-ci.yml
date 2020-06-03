@@ -27,8 +27,6 @@ development:
     - lcmap
   except:
     - tags
-    - develop
-    - master
 
 release:
   stage: release
@@ -41,7 +39,4 @@ release:
     - eros
     - lcmap
   only:
-    - develop
-    - master
-  except:
     - tags
