@@ -171,3 +171,17 @@ http POST 127.0.0.1:9876/bundle years="1985/2017" \
 (require '[cemerick.pomegranate :as pom])
 (pom/add-classpath "/workspace/lcmap-gaia/target/gaia-0.2.7-standalone.jar")
 ```
+
+## Contributing
+Before committing to this repository, run the following command.
+
+```bash
+git config --local commit.template .gitmessage
+```
+
+This will add the LCMAP commit template to `git commit`.
+
+```text
+jira/lcmap-xxxx: Title
+Description
+```
