@@ -4,5 +4,6 @@ target/
 docs/
 .lein-env
 .lein-failures
+.nrepl-port
 *~
 */~

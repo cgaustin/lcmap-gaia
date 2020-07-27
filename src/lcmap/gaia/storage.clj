@@ -70,7 +70,10 @@
 
 (defn create_bucket
   ([bucket]
-   (s3/create-bucket client-config bucket)))
+   (try (s3/create-bucket client-config bucket)
+        (catch com.amazonaws.services.s3.model.AmazonS3Exception e
+          (let [msg (format "problem creating bucket: %s. Ignore if not owner. Details: %s" bucket (.getMessage e))]
+            (log/warn msg))))))
 
 (defn put_json
   ([bucket output_path data]
@@ -80,7 +83,7 @@
          metadata {:content-length (count byte_data) :content-type "application/json"}
          keyname (str (:prefix output_path) "/" (:name output_path))
          acl {:grant-permission ["AllUsers" "Read"]}]
-    (try
+     (try
        (s3/put-object client-config :bucket-name bucket :key keyname :input-stream byte_stream :metadata metadata :access-control-list acl)
        true
        (catch Exception e
@@ -146,7 +149,7 @@
 
 (defn get_url
   ([bucket keyname]
-     (str (:storage-endpoint config) "/" bucket "/" keyname))
+   (str (:storage-endpoint config) "/" bucket "/" keyname))
   ([keyname]
    (get_url source_bucket keyname)))
 
@@ -166,13 +169,13 @@
   (let [ix (int x)
         iy (int y)
         url (str (:endpoint client-config) "/" source_bucket (:segments_path config) "/" ix "-" iy ".json")
-        response (util/log-time @(http/get url) (format "storage/segments request for x %s  y %s" ix iy)) ]
+        response (util/log-time @(http/get url) (format "storage/segments request for x %s  y %s" ix iy))]
     (if (= 200 (:status response))
       (parse_body response)
       (do (log/debugf "Error requesting segments data from Ceph - url: %s  response: %s" url response)
           (throw (ex-info "Error requesting segments data from Ceph" {:type "data-request-error"
                                                                       :message "non-200 response from Ceph for segments data"
-                                                                      :status (:status response) 
+                                                                      :status (:status response)
                                                                       :url url}))))))
 
 (defn predictions
@@ -182,11 +185,11 @@
         url (str (:endpoint client-config) "/" source_bucket (:predictions_path config) "/" ix "-" iy ".json")
         response (util/log-time @(http/get url) (format "storage/predictions request for chip x:%s y:%s " ix iy))]
     (if (= 200 (:status response))
-      (parse_body response) 
+      (parse_body response)
       (do (log/debugf "Error requesting predictions data from Ceph - url: %s  response: %s" url response)
           (throw (ex-info "Error requesting predictions data from Ceph" {:type "data-request-error"
                                                                          :message "non-200 response from Ceph for predictions data"
-                                                                         :status (:status response) 
+                                                                         :status (:status response)
                                                                          :url url}))))))
 
 (defn segments-sorted
@@ -198,7 +201,7 @@
   [keyname]                                    ; raster/2009/CU/029/006/cover/<lcmap_tif>.tif 
   (let [tif (last (string/split keyname #"/")) ; LCMAP-CU-029006-2009-20190924-V01-LCPRI.tif
         elements (string/split tif #"-")]      ; ["LCMAP" "CU" "029006" "2009" "20190924" "V01" "LCPRI.tif"]
-     (nth elements 4)))
+    (nth elements 4)))
 
 (defn latest_tif
   "Return the most recent product by production date"
@@ -227,9 +230,9 @@
         tiffs  (filter (fn [i] (string/includes? i ".tif")) objects)]    ; collection of object keys
     (doall (map (fn [i] (latest_tif tiffs i)) product_details)))) ; return hash-map like product_details, but with new :object-key key/value
 
-(defn chip                                                                                                                            
+(defn chip
   "Return /chip data for a cx cy pair"
-  [cx cy] 
+  [cx cy]
   (let [url (str (:endpoint client-config) "/" source_bucket "/chip/" (int cx) "-" (int cy) ".json")
         response @(http/get url)]
     (if (= 200 (:status response))
@@ -237,7 +240,7 @@
       (do (log/debugf "Error requesting chip data from Ceph - url: %s  response: %s" url response)
           (throw (ex-info "Error requesting chip data from Ceph" {:type "data-request-error"
                                                                   :message "non-200 response from Ceph for chip data"
-                                                                  :status (:status response) 
+                                                                  :status (:status response)
                                                                   :url url}))))))
 
 (defn init
