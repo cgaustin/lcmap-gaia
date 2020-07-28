@@ -2,6 +2,7 @@
 *.swp
 target/
 docs/
+.calva/
 .lein-env
 .lein-failures
 .nrepl-port
