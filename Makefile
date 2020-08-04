@@ -5,10 +5,8 @@ IMAGE:=usgseros/lcmap-gaia
 .DEFAULT_GOAL := build
 VERSION    := `./bin/version`
 IMAGE      := eroslab.cr.usgs.gov:4567/lcmap/gaia
-BRANCH     := $(or $(CI_COMMIT_REF_NAME),`git rev-parse --abbrev-ref HEAD`)
-BRANCH     := $(shell echo $(BRANCH) | tr / -)
 SHORT_HASH := `git rev-parse --short HEAD`
-TAG        := $(IMAGE):$(BRANCH)-$(VERSION)-$(SHORT_HASH)
+TAG        := $(IMAGE):$(VERSION)-$(SHORT_HASH)
 
 
 # LCMAP Standard Makefile targets.  Do not remove.
@@ -40,3 +38,9 @@ login:
 clean:
 	@lein clean
 	@rm -rf docs/
+
+debug:
+	@echo "VERSION: $(VERSION)"
+	@echo "IMAGE: $(IMAGE)"
+	@echo "TAG: $(TAG)"
+
