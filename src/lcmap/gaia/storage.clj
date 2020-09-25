@@ -137,15 +137,17 @@
   (s3/delete-bucket client-config :bucket-name bucket))
 
 (defn get_json
-  [bucket jsonpath]
-  (try
-    (let [s3object (s3/get-object client-config :bucket-name bucket :key (str (:prefix jsonpath) "/" (:name jsonpath)))
-          s3content (clojure.java.io/reader (:object-content s3object))]
-      (json/parse-stream s3content))
-    (catch Exception e
-      (let [msg (format "problem retrieving product json %s: %s" jsonpath (.getMessage e))]
-        (log/error msg)
-        (throw (ex-info msg {:type "data-request-error" :message msg} (.getCause e)))))))
+  ([bucket jsonpath]
+   (try
+     (let [s3object (s3/get-object client-config :bucket-name bucket :key (str (:prefix jsonpath) "/" (:name jsonpath)))
+           s3content (clojure.java.io/reader (:object-content s3object))]
+       (json/parse-stream s3content))
+     (catch Exception e
+       (let [msg (format "problem retrieving product json %s: %s" jsonpath (.getMessage e))]
+         (log/error msg)
+         (throw (ex-info msg {:type "data-request-error" :message msg} (.getCause e)))))))
+  ([jsonpath]
+   (get_json source_bucket jsonpath)))
 
 (defn get_url
   ([bucket keyname]
