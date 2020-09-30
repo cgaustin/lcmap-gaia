@@ -1,4 +1,4 @@
-(defproject gaia "1.4.7"
+(defproject gaia "1.4.8"
   :description "Level 2 CCDC Product Generation"
   :url "http://github.com/usgs-eros/lcmap-gaia"
   :license {:name "Unlicense"
@@ -29,7 +29,10 @@
                  [amazonica                 "0.3.139"]
                  [listora/again             "1.0.0"]
                  [comb                      "0.1.1"]
-                 [digest                    "1.4.9"]]
+                 [digest                    "1.4.9"]
+                 [jakarta.xml.bind/jakarta.xml.bind-api "2.3.2"]
+                 [org.glassfish.jaxb/jaxb-runtime "2.3.2"]
+                 ]
 
   :plugins [[lein-environ "1.1.0"]]
   :codox {:output-path "docs"}

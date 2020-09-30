@@ -33,8 +33,6 @@ export STORAGE_BUCKET="some-ceph-bucket"
 export STORAGE_ENDPOINT="http://localhost:7480"
 export STORAGE_LOCATION="/data/ccdc"
 export STORAGE_SECRET_KEY="13235lkjis"
-export Xms=4352m
-export Xmx=4352m
 
 docker run -p 9876:${HTTP_PORT} -e CCD_VERSION=${CCD_VERSION} \
                                 -e CHIPMUNK_ACQUIRED=${CHIPMUNK_ACQUIRED} \
@@ -50,9 +48,6 @@ docker run -p 9876:${HTTP_PORT} -e CCD_VERSION=${CCD_VERSION} \
                                 -e HTTP_PORT=${HTTP_PORT} \
                                 -e REGION=${REGION} \
                                 -e CCD_VERSION=${CCD_VERSION} \
-                                -e Xmx=${Xmx} \
-                                -e Xms=${Xms} \
-                                -e Xmx=${Xmx} \
                                 -it usgseros/lcmap-gaia:latest
 ```
 
@@ -107,8 +102,6 @@ Gaia is configured using these environment variables:
 | `TIFF_COMPRESS_COUNT` | simultaneous compression operations         | 2
 | `WORK_DIR`            | dir within container to run the jar,        | /
 |                       | temporary files are kept here               | (used only by startup.sh in container)
-| `Xms`                 | minimum JVM memory                          |
-| `Xmx`                 | maximum JVM memory                          |
 
 ## Local storage considerations
 
