@@ -198,6 +198,15 @@
   [x y key]
   (util/sort-by-key (segments x y) key))
 
+(defn pixel_segments
+  [x y]
+  (let [segments (util/with-retry (segments-sorted x y "sday"))]
+    (util/pixel-groups segments)))
+
+(defn pixel_predictions
+  [x y]
+  (util/pixel-groups (predictions x y)))
+
 (defn tif_production_date
   "Extract production date from full object key name"
   [keyname]                                    ; raster/2009/CU/029/006/cover/<lcmap_tif>.tif 

@@ -321,17 +321,20 @@
                        :secondary-confidence secondary_confidence
                        :annual-change annual_change})))
 
+(defn pixel_inputs
+  [cx cy]
+  (let [grouped_segments    (storage/pixel_segments cx cy)
+        grouped_predictions (storage/pixel_predictions cx cy)
+        pixel_coords        (keys grouped_segments)
+        pixel_hash-map      #(hash-map % {:segments (get grouped_segments %)
+                                          :predictions (get grouped_predictions %)})]
+    (into {} (map pixel_hash-map pixel_coords))))
+
 (defn generate
   [{dates :dates cx :cx cy :cy tile :tile :as all}]
   (try
-    (let [segments            (util/with-retry (storage/segments-sorted cx cy "sday")) 
-          predictions         (util/with-retry (storage/predictions cx cy)) 
-          grouped_segments    (util/pixel-groups segments)
-          grouped_predictions (util/pixel-groups predictions)
-          pixel_coords        (keys grouped_segments)
-          pixel_hash-map      #(hash-map % {:segments (get grouped_segments %) :predictions (get grouped_predictions %)})
-          pixel_inputs        (into {} (map pixel_hash-map pixel_coords))]
-
+    (let [pixel_inputs        (pixel_inputs cx cy)]
+      
       (doseq [date dates]
         (let [ordinal_date     (util/to-ordinal date)
               pixel_dates      (combo/cartesian-product [ordinal_date] (keys pixel_inputs)) ; ([ordinal-date [px py]], ...)]

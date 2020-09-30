@@ -132,8 +132,7 @@
 (defn generate
   [{dates :dates cx :cx cy :cy tile :tile :as all}]
   (try
-    (let [segments         (util/with-retry (storage/segments-sorted cx cy "sday")) 
-          grouped_segments (util/pixel-groups segments)]
+    (let [grouped_segments (storage/pixel_segments cx cy)]
 
       (doseq [date dates]
         (let [ordinal_date   (util/to-ordinal date)
