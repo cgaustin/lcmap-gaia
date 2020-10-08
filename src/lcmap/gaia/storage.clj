@@ -210,8 +210,8 @@
 (defn tif_production_date
   "Extract production date from full object key name"
   [keyname]                                    ; raster/2009/CU/029/006/cover/<lcmap_tif>.tif 
-  (let [tif (last (string/split keyname #"/")) ; LCMAP-CU-029006-2009-20190924-V01-LCPRI.tif
-        elements (string/split tif #"-")]      ; ["LCMAP" "CU" "029006" "2009" "20190924" "V01" "LCPRI.tif"]
+  (let [tif (last (string/split keyname #"/")) ; LCMAP_CU_029006_2009_20190924_V01_LCPRI.tif
+        elements (string/split tif #"_")]      ; ["LCMAP" "CU" "029006" "2009" "20190924" "V01" "LCPRI.tif"]
     (nth elements 4)))
 
 (defn latest_tif
