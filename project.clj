@@ -3,8 +3,8 @@
   :url "http://github.com/usgs-eros/lcmap-gaia"
   :license {:name "Unlicense"
             :url ""}
-  :dependencies [[org.clojure/clojure       "1.9.0"]
-                 [org.clojure/core.async    "0.3.443"]
+  :dependencies [[org.clojure/clojure       "1.10.1"]
+                 [org.clojure/core.async    "1.3.610"]
                  [org.clojure/math.numeric-tower "0.0.4"]
                  [org.clojure/tools.logging "0.4.0"]
                  [org.slf4j/slf4j-log4j12 "1.7.21"]
