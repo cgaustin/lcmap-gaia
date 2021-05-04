@@ -11,7 +11,7 @@
           <pubplace>Sioux Falls, SD</pubplace>
           <publish>U.S. Geological Survey</publish>
         </pubinfo>
-        <onlink>https://doi.org/10.5066/P9O8TJWG</onlink>
+        <onlink>https://doi.org/10.5066/P9SW95Z0</onlink>
       </citeinfo>
     </citation>
     <descript>
@@ -19,13 +19,13 @@
 Landsat ARD, as the source data for LCMAP, are standardized Landsat data pre-processed to ensure the data meet a minimum set of requirements and are organized into a form that allows immediate analysis with a minimum of additional user effort. ARD data are provided as tiled, georegistered, surface reflectance products defined in a common equal area projection and tiled to a common grid. ARD observations must be transformed into time series vectors before further calculations using the CCDC methodology. 
 The CCDC methodology, initially developed at Boston University (Zhu and Woodcock, 2014), has been adopted and modified by USGS for LCMAP. CCDC involves harmonic modeling that characterizes the seasonality, trends, and breaks from those trends based on the time series spectral reflectance data from multiple Landsat bands (i.e., green, red, near-infrared, short-wave infrared). The CCDC approach involves two major components: change detection and classification. The change detection component utilizes available high-quality surface reflectance data in a pixel-based time series to calculate a mathematical model for the spectral response of each pixel and to estimate the dates at which the spectral time series data diverge from past responses or patterns. The basis of change detection is the comparison of clear satellite observations with model predictions.  'Divergence' (referred to as a model 'break') often is identified as the result of an abrupt change (e.g. wildfire, logging, mining, and urban development) but may also result from a gradual shift (e.g., forest regrowth, insect infestation, disease) in the spectral signal over time. Breaks are detected by CCDC by applying a criterion based on the root mean square error of the harmonic modeling. Time periods for established models are referred to as 'model segments.' After a break is identified in the time series, a new model can be established following the break provided there are enough clear observations going forward in time. 
 The classification component of CCDC involves using the coefficients of time series models as the inputs for land cover classification. The CCDC method has the capability to generate land cover for any date in the time series; the USGS has selected an annual time step for land cover classification. The suite of land cover and change products are nominally identified at a central point in the year, July 1. Classification is performed using a boosted decision tree method based on training data developed from 2001 NLCD land cover classes (Homer and others, 2007). The land cover legend for the Primary and Secondary Land Cover products is comparable to an Anderson level 1 classifcation scheme.</abstract>
-      <purpose>The data set depicts LCMAP CCDC Collection v1.1 raster products consisting of five land surface change and five land cover layers created to support the land change science community.</purpose>
+      <purpose>The data set depicts LCMAP CCDC Collection v1.2 raster products consisting of five land surface change and five land cover layers created to support the land change science community.</purpose>
     </descript>
     <timeperd>
       <timeinfo>
         <rngdates>
           <begdate>1985</begdate>
-          <enddate>2019</enddate>
+          <enddate>2020</enddate>
         </rngdates>
       </timeinfo>
       <current>ground condition</current>
@@ -145,11 +145,11 @@ The classification component of CCDC involves using the coefficients of time ser
     </posacc>
     <lineage>
       <procstep>
-        <procdesc>An Algorithm Description Document (ADD) for the LCMAP implementation of CCDC Collection v1.1 can be found at: https://www.usgs.gov/media/files/lcmap-collection-11-ccdc-add</procdesc>
+        <procdesc>An Algorithm Description Document (ADD) for the LCMAP implementation of CCDC Collection v1.2 can be found at: https://www.usgs.gov/media/files/lcmap-collection-12-ccdc-add</procdesc>
         <procdate>Unknown</procdate>
       </procstep>
       <procstep>
-        <procdesc>Continuous Change Detection. Landsat ARD surface reflectance (SR), brightness temperature (BT), and PixelQA data are retrieved through LCMAP data access services for the date range 1982-01-01 through 2020-01-01 (exclusive) from the LCMAP Information Warehouse and Data Store (IWDS). These data are then processed by the LCMAP implementation of the Continuous Change Detection component of the CCDC algorithm, with results stored back in the LCMAP IWDS. The full list of observation dates from ARD used for processing through Continuous Change Detection is available in the separate file <%= observations_name %>.</procdesc>
+        <procdesc>Continuous Change Detection. Landsat ARD surface reflectance (SR), brightness temperature (BT), and PixelQA data are retrieved through LCMAP data access services for the date range 1982-01-01 through 2021-01-01 (exclusive) from the LCMAP Information Warehouse and Data Store (IWDS). These data are then processed by the LCMAP implementation of the Continuous Change Detection component of the CCDC algorithm, with results stored back in the LCMAP IWDS. The full list of observation dates from ARD used for processing through Continuous Change Detection is available in the separate file <%= observations_name %>.</procdesc>
         <procdate>Unknown</procdate>
       </procstep>
       <procstep>
@@ -289,7 +289,7 @@ The classification component of CCDC involves using the coefficients of time ser
     <techpreq>All Land Cover and Land Change products are delivered in tar packages (.tar)  that 'untar' (unzip) into ten individual Georeferenced Tagged Image File Format (GeoTIFF; .tif) raster files and an Extensible Markup Language (XML) (.xml) metadata file.</techpreq>
   </distinfo>
   <metainfo>
-    <metd>20190403</metd>
+    <metd>20210504</metd>
     <metc>
       <cntinfo>
         <cntperp>
