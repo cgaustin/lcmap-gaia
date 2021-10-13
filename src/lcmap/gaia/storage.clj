@@ -241,6 +241,14 @@
         tiffs  (filter (fn [i] (string/includes? i ".tif")) objects)]    ; collection of object keys
     (doall (map (fn [i] (latest_tif tiffs i)) product_details)))) ; return hash-map like product_details, but with new :object-key key/value
 
+
+(comment
+  (require '[lcmap.gaia.raster :as raster])
+  (latest_tile_tifs "2005-07-01" "004002" raster/product_details)
+  
+  
+  )
+
 (defn chip
   "Return /chip data for a cx cy pair"
   [cx cy]

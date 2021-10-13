@@ -69,10 +69,12 @@
 (def int16   (gdalconstJNI/GDT_UInt16_get))
 (def float32 (gdalconstJNI/GDT_Float32_get))
 
+(def hi_grid_wkt "PROJCS[\"Albers\",GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378140,298.2569999999986,AUTHORITY[\"EPSG\",\"7030\"]],AUTHORITY[\"EPSG\",\"6326\"]],PRIMEM[\"Greenwich\",0],UNIT[\"degree\",0.0174532925199433],AUTHORITY[\"EPSG\",\"4326\"]],PROJECTION[\"Albers_Conic_Equal_Area\"],PARAMETER[\"standard_parallel_1\",8],PARAMETER[\"standard_parallel_2\",18],PARAMETER[\"latitude_of_center\",3],PARAMETER[\"longitude_of_center\",-157],PARAMETER[\"false_easting\",0],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1,AUTHORITY[\"EPSG\",\"9001\"]]]")
+
 (defn geographic-coords
   "Return the WGS 84 coordinates for the projected coordinate pair"
   [[x y]]
-  (let [proj_wkt (chipmunk/grid-wkt)
+  (let [proj_wkt hi_grid_wkt  ;(chipmunk/grid-wkt)
         proj_ref (SpatialReference.)
         proj_set (.ImportFromWkt proj_ref proj_wkt) 
         geog_ref (SpatialReference.)
