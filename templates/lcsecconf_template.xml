@@ -486,7 +486,7 @@ The classification component of CCDC involves using the coefficients of time ser
         <attrdomv>
           <edom>
             <edomv>201</edomv>
-            <edomvd>CCDC was unable to generate any model time segments for the time series, pixel was assigned 2001 NLCD value in both the primary and secondary land cover class.</edomvd>
+            <edomvd>CCDC was unable to establish any model segments for the time series, pixel was assigned with filling layer value in both the primary and secondary land cover class. The filling layer was produced by the training layer, C-CAP 2010/2011 and NLCD 2001. Any pixels in the training layer remained the same in the filling layer. For pixels out of the training layer, they were labeled as C-CAP 2010/2011 value if they were not wetland or pasture/hay in C-CAP 2010/2011, otherwise, they were labeled as NLCD 2001 value in the filling layer.</edomvd>
             <edomvds>LCMAP Legend Land Cover Confidence Descriptions</edomvds>
           </edom>
         </attrdomv>
