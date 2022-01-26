@@ -44,6 +44,24 @@
                        :env {:storage-bucket "foo" :storage-destination "bar"}}
              :uberjar {:omit-source true
                        :aot :all}
-             :repl {:env {}}}
+             :repl {:dependencies [[environ "1.1.0"]]
+                    :plugins [[lein-environ "1.1.0"]
+                              [lein-codox "0.10.7"]
+                              [lein-shell "0.4.1"]]
+                    :env {:storage-access-key "TE48ASD26037R04L1M4A"
+                          :storage-secret-key "yF1gcZcdTPqBaL7xqmEAujvGPwZ18PCcPG6mUezG"
+                          :storage-endpoint "http://lsdslb.cr.usgs.gov:7484"
+                          :storage-bucket "ard-hi-c01-v01-aux-hi-v01-ccdc-1-0-science"
+                          :storage-location "/dropoff"
+                          :chipmunk-host "http://lcmap.cr.usgs.gov/ard_hi_c01_v01/"
+                          :ccd-version "V10"
+                          :region "HI"
+                          :bundle-user "ccdcops"
+                          :bundle-user-id "17022"
+                          ;:bundle-user "ccdcst"
+                          ;:bundle-user-id "17021"
+                          ;:bundle-user "ccdcit"
+                          ;:bundle-user-id "17020"
+                          }}}
   :repl-options {:port 8081}
   :main lcmap.gaia.main)

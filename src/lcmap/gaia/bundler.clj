@@ -260,8 +260,8 @@
     (log/infof "delivering bundle")
     (push-bundle output_names)
 
-    (log/infof "pushing generated metadata to storage")
-    (persist-metadata tiff_details)
+    (log/infof "NOT pushing generated metadata to storage")
+    ;(persist-metadata tiff_details)
 
     (log/infof "cleaning up files")
     (cleanup all_names))
